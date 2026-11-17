@@ -2,19 +2,23 @@
 
 Bilingual (English / Arabic) portfolio for Prof. Khaled Abd El Fatah Mohamed, Professor of
 Information Science at Fayoum University and Knowledge & Digital Solutions Consultant at the
-Mohammed Bin Rashid Al Maktoum Knowledge Foundation.
+Mohammed Bin Rashid Al Maktoum Knowledge Foundation, with an admin panel for editing every part
+of the site.
 
 Built with Next.js 15 (App Router), TypeScript, Tailwind CSS 4, Framer Motion, next-themes and
-Lucide icons.
+Lucide icons. Hosted on Vercel with a Neon Postgres database and Vercel Blob for uploads (all on
+free plans).
 
 ## Getting started
 
 ```bash
 npm install
+vercel env pull .env.local   # copies DATABASE_URL, BLOB_READ_WRITE_TOKEN, … from Vercel
 npm run dev
 ```
 
-Open http://localhost:3000 (English) or http://localhost:3000/ar (Arabic).
+Open http://localhost:3000 (English), http://localhost:3000/ar (Arabic) or
+http://localhost:3000/admin (admin).
 
 ```bash
 npm run build   # production build
@@ -24,8 +28,7 @@ npm run lint
 
 ## Admin panel
 
-Go to `/admin` and sign in with an account from the `AdminUsers` table (the same accounts and
-password format as the previous ASP.NET site).
+Go to `/admin` and sign in.
 
 | Page | What it edits |
 | --- | --- |
@@ -48,33 +51,28 @@ npm run admin:password -- <username>
 
 ### Where content is stored
 
-- **SQL Server (`PortfolioDb`)**: the app creates three tables on first run: `WebContent` (all
-  content as one JSON document), `WebMedia` (uploaded files) and `WebMessages` (contact
-  messages). The original tables are only read (`AdminUsers`), never changed in structure.
-- **Uploads**: files go to `MEDIA_DIR` (default `./storage/media`) and are served from `/media/…`.
-  Back this folder up together with the database.
+- **Postgres (Neon)**: tables are created on first run: `web_content` (all content as one JSON
+  document), `web_media` (uploaded files), `web_messages` (contact messages) and `admin_users`.
+  Passwords use the ASP.NET Identity v3 hash format, so accounts from the previous ASP.NET site
+  can be copied over unchanged.
+- **Uploads**: the browser uploads straight to Vercel Blob (images up to 10 MB, PDFs up to 25 MB).
 - **Defaults**: `src/content/en.ts`, `src/content/ar.ts` and `src/data/site.ts` seed the database
   on first run, and are served if the database is unreachable.
-
-The SQL Server driver is `msnodesqlv8` (ODBC), so it needs the *ODBC Driver 17 or 18 for SQL
-Server* on the machine and works with Windows authentication. The site must run on a server with
-a persistent disk (not a serverless platform).
 
 ## Languages and routing
 
 - `/` serves English and `/ar` serves Arabic (right-to-left, Arabic typefaces).
-- `src/middleware.ts` maps the routes and remembers the visitor's last language in a cookie.
+- `src/middleware.ts` maps the routes, remembers the visitor's last language in a cookie, and
+  protects `/admin`.
 
 ## Environment variables
-
-Copy `.env.example` to `.env.local` and fill in:
 
 | Variable | Purpose |
 | --- | --- |
 | `NEXT_PUBLIC_SITE_URL` | Public URL, used for canonical links, sitemap and Open Graph |
-| `MSSQL_CONNECTION_STRING` | ODBC connection string for `PortfolioDb` |
-| `ADMIN_SESSION_SECRET` | 32+ random characters; signs admin sessions (required in production) |
-| `MEDIA_DIR` | Optional upload folder (default `./storage/media`) |
+| `DATABASE_URL` | Postgres connection string (set by the Vercel Neon integration) |
+| `BLOB_READ_WRITE_TOKEN` | Vercel Blob token (set when a Blob store is connected) |
+| `ADMIN_SESSION_SECRET` | 32+ random characters; signs admin sessions |
 | `RESEND_API_KEY` | Optional [Resend](https://resend.com) key to also email contact messages |
 | `CONTACT_TO_EMAIL` | Inbox that receives those emails |
 | `CONTACT_FROM_EMAIL` | Optional verified sender address |
@@ -87,7 +85,7 @@ Contact messages are always saved to the admin inbox; email is an extra.
 src/
   app/[locale]/        pages, layout, 404 (per language)
   app/admin/           admin panel (login, editors, server actions)
-  app/media/           serves uploaded files
+  app/api/admin/       upload tokens for Vercel Blob
   app/api/contact/     contact form endpoint
   app/api/og/          social share image
   server/              database, auth, content, media and messages (server-only)
@@ -103,12 +101,5 @@ src/
 
 ## Deploying
 
-Run it on a Windows or Linux server with Node.js 20+, the ODBC driver and access to the database:
-
-```bash
-npm ci
-npm run build
-npm run start   # port 3000; put IIS, nginx or similar in front for HTTPS
-```
-
-Keep `MEDIA_DIR` on a persistent disk and include it in backups.
+Every push to `main` deploys to production on Vercel. The project needs a Neon database and a
+Blob store connected (Vercel → Project → Storage) and `ADMIN_SESSION_SECRET` set.

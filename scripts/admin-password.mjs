@@ -1,18 +1,18 @@
 #!/usr/bin/env node
 /**
- * Creates an admin user or resets its password, directly in the AdminUsers table.
+ * Creates an admin user or resets its password.
  * Use it when the password is forgotten (the admin panel can change it otherwise).
  *
  *   npm run admin:password -- <username>
  *
- * Reads MSSQL_CONNECTION_STRING from .env.local / .env if set.
- * Passwords are stored in the ASP.NET Identity v3 format the old site also uses.
+ * Reads DATABASE_URL from .env.local / .env (run `vercel env pull` to get it).
+ * Passwords use the ASP.NET Identity v3 hash format (PBKDF2-SHA512, 100k iterations).
  */
 import { pbkdf2Sync, randomBytes } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { createInterface } from "node:readline";
 import { Writable } from "node:stream";
-import sql from "mssql/msnodesqlv8.js";
+import { neon } from "@neondatabase/serverless";
 
 for (const file of [".env.local", ".env"]) {
   if (!existsSync(file)) continue;
@@ -22,9 +22,11 @@ for (const file of [".env.local", ".env"]) {
   }
 }
 
-const connectionString =
-  process.env.MSSQL_CONNECTION_STRING ||
-  "Driver={ODBC Driver 17 for SQL Server};Server=lpc:(local);Database=PortfolioDb;Trusted_Connection=Yes;";
+const url = process.env.DATABASE_URL || process.env.POSTGRES_URL;
+if (!url) {
+  console.error("DATABASE_URL is not set. Run `vercel env pull .env.local` first.");
+  process.exit(1);
+}
 
 const username = process.argv[2];
 if (!username) {
@@ -73,15 +75,16 @@ if (password !== confirm) {
   process.exit(1);
 }
 
-const pool = await sql.connect({ connectionString });
-const result = await pool
-  .request()
-  .input("u", sql.NVarChar(200), username)
-  .input("h", sql.NVarChar(sql.MAX), hash(password))
-  .query(`
-    UPDATE dbo.AdminUsers SET PasswordHash = @h WHERE Username = @u;
-    IF @@ROWCOUNT = 0 INSERT INTO dbo.AdminUsers (Username, PasswordHash) VALUES (@u, @h);
-    SELECT @@ROWCOUNT AS changed;
-  `);
-await pool.close();
-console.log(result.rowsAffected[0] ? `Password updated for "${username}".` : `Admin user "${username}" created.`);
+const sql = neon(url);
+await sql`CREATE TABLE IF NOT EXISTS admin_users (
+  id serial PRIMARY KEY,
+  username text NOT NULL UNIQUE,
+  password_hash text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
+)`;
+const rows = await sql`
+  INSERT INTO admin_users (username, password_hash) VALUES (${username}, ${hash(password)})
+  ON CONFLICT (username) DO UPDATE SET password_hash = EXCLUDED.password_hash
+  RETURNING (xmax = 0) AS created
+`;
+console.log(rows[0]?.created ? `Admin user "${username}" created.` : `Password updated for "${username}".`);

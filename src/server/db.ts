@@ -1,79 +1,64 @@
-import sql from "mssql/msnodesqlv8";
+import { neon, type NeonQueryFunction } from "@neondatabase/serverless";
 
 /**
- * SQL Server access (PortfolioDb) through the ODBC driver, so Windows authentication and
- * local shared-memory connections work without enabling TCP on the server.
- * Override with MSSQL_CONNECTION_STRING (any ODBC connection string).
+ * Postgres (Neon) over HTTP: no connection pool to manage, works in serverless functions.
+ * The Vercel Neon integration sets DATABASE_URL; POSTGRES_URL is accepted too.
  */
-const DEFAULT_CONNECTION =
-  "Driver={ODBC Driver 17 for SQL Server};Server=lpc:(local);Database=PortfolioDb;Trusted_Connection=Yes;";
+type Sql = NeonQueryFunction<false, false>;
 
 type GlobalWithDb = typeof globalThis & {
-  __kmPool?: Promise<sql.ConnectionPool>;
+  __kmSql?: Sql;
   __kmSchema?: Promise<void>;
 };
 const g = globalThis as GlobalWithDb;
 
-export { sql };
-
-export function getPool(): Promise<sql.ConnectionPool> {
-  if (!g.__kmPool) {
-    const config = {
-      connectionString: process.env.MSSQL_CONNECTION_STRING || DEFAULT_CONNECTION,
-      connectionTimeout: 30000,
-      requestTimeout: 60000,
-      // Keep one connection open so requests don't pay for a fresh login each time.
-      pool: { max: 5, min: 1, idleTimeoutMillis: 300000 },
-    } as unknown as sql.config;
-
-    g.__kmPool = new sql.ConnectionPool(config).connect().catch((error: unknown) => {
-      // Allow a later request to retry instead of caching the failure forever.
-      g.__kmPool = undefined;
-      throw error;
-    });
+export function sql(): Sql {
+  if (!g.__kmSql) {
+    const url = process.env.DATABASE_URL || process.env.POSTGRES_URL;
+    if (!url) throw new Error("DATABASE_URL is not set.");
+    g.__kmSql = neon(url);
   }
-  return g.__kmPool;
+  return g.__kmSql;
 }
 
-/**
- * Creates the tables the new site needs, if missing. The original ASP.NET tables
- * (AdminUsers, Books, Profiles, …) are read but never altered.
- */
+/** Creates the tables the site needs, if missing. Runs once per server instance. */
 export function ensureSchema(): Promise<void> {
   if (!g.__kmSchema) {
     g.__kmSchema = (async () => {
-      const pool = await getPool();
-      await pool.request().batch(`
-        IF OBJECT_ID(N'dbo.WebContent', N'U') IS NULL
-          CREATE TABLE dbo.WebContent (
-            Id NVARCHAR(32) NOT NULL CONSTRAINT PK_WebContent PRIMARY KEY,
-            Json NVARCHAR(MAX) NOT NULL,
-            UpdatedAt DATETIME2 NOT NULL CONSTRAINT DF_WebContent_UpdatedAt DEFAULT SYSUTCDATETIME(),
-            UpdatedBy NVARCHAR(100) NULL
-          );
-
-        IF OBJECT_ID(N'dbo.WebMedia', N'U') IS NULL
-          CREATE TABLE dbo.WebMedia (
-            Id INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_WebMedia PRIMARY KEY,
-            StoredName NVARCHAR(100) NOT NULL CONSTRAINT UQ_WebMedia_StoredName UNIQUE,
-            OriginalName NVARCHAR(260) NOT NULL,
-            ContentType NVARCHAR(100) NOT NULL,
-            Size BIGINT NOT NULL,
-            CreatedAt DATETIME2 NOT NULL CONSTRAINT DF_WebMedia_CreatedAt DEFAULT SYSUTCDATETIME()
-          );
-
-        IF OBJECT_ID(N'dbo.WebMessages', N'U') IS NULL
-          CREATE TABLE dbo.WebMessages (
-            Id INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_WebMessages PRIMARY KEY,
-            Name NVARCHAR(100) NOT NULL,
-            Email NVARCHAR(150) NOT NULL,
-            Subject NVARCHAR(150) NOT NULL,
-            Message NVARCHAR(MAX) NOT NULL,
-            Locale NVARCHAR(5) NULL,
-            IsRead BIT NOT NULL CONSTRAINT DF_WebMessages_IsRead DEFAULT 0,
-            CreatedAt DATETIME2 NOT NULL CONSTRAINT DF_WebMessages_CreatedAt DEFAULT SYSUTCDATETIME()
-          );
-      `);
+      const q = sql();
+      await q.transaction([
+        q`CREATE TABLE IF NOT EXISTS web_content (
+            id text PRIMARY KEY,
+            json jsonb NOT NULL,
+            updated_at timestamptz NOT NULL DEFAULT now(),
+            updated_by text
+          )`,
+        q`CREATE TABLE IF NOT EXISTS web_media (
+            id serial PRIMARY KEY,
+            url text NOT NULL UNIQUE,
+            pathname text NOT NULL,
+            original_name text NOT NULL,
+            content_type text NOT NULL,
+            size bigint NOT NULL,
+            created_at timestamptz NOT NULL DEFAULT now()
+          )`,
+        q`CREATE TABLE IF NOT EXISTS web_messages (
+            id serial PRIMARY KEY,
+            name text NOT NULL,
+            email text NOT NULL,
+            subject text NOT NULL,
+            message text NOT NULL,
+            locale text,
+            is_read boolean NOT NULL DEFAULT false,
+            created_at timestamptz NOT NULL DEFAULT now()
+          )`,
+        q`CREATE TABLE IF NOT EXISTS admin_users (
+            id serial PRIMARY KEY,
+            username text NOT NULL UNIQUE,
+            password_hash text NOT NULL,
+            created_at timestamptz NOT NULL DEFAULT now()
+          )`,
+      ]);
     })().catch((error: unknown) => {
       g.__kmSchema = undefined;
       throw error;
@@ -82,8 +67,8 @@ export function ensureSchema(): Promise<void> {
   return g.__kmSchema;
 }
 
-/** Pool with the schema guaranteed to exist. */
-export async function db() {
+/** Query function with the schema guaranteed to exist. */
+export async function db(): Promise<Sql> {
   await ensureSchema();
-  return getPool();
+  return sql();
 }

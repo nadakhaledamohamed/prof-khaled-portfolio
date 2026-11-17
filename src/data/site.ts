@@ -47,9 +47,9 @@ export const sectionIds = [
 
 export const categories: PublicationCategory[] = ["retrieval", "libraries", "other"];
 
-/** Files uploaded through the admin panel are served from /media and skip image optimisation. */
+/** Files uploaded through the admin panel live in Vercel Blob and skip image optimisation. */
 export function isUpload(src: string) {
-  return src.startsWith("/media/");
+  return src.includes(".blob.vercel-storage.com/");
 }
 
 export function socialLinksFrom(links: SiteLinks): SocialLink[] {

@@ -10,8 +10,9 @@ export function DbError({ error }: { error: unknown }) {
       </span>
       <h2 className="text-lg font-semibold">The database is not reachable</h2>
       <p className="max-w-xl text-sm leading-relaxed text-muted-foreground">
-        Make sure SQL Server is running and that <code className="font-mono">MSSQL_CONNECTION_STRING</code>{" "}
-        in <code className="font-mono">.env.local</code> points at PortfolioDb. Then reload this page.
+        Check that <code className="font-mono">DATABASE_URL</code> is set (on Vercel: Project → Settings →
+        Environment Variables; locally: run <code className="font-mono">vercel env pull .env.local</code>). Then
+        reload this page.
       </p>
       <p className="max-w-xl break-words font-mono text-xs text-muted-foreground">{detail}</p>
     </div>

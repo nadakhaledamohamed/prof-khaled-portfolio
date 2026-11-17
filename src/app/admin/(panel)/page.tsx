@@ -8,9 +8,9 @@ import { countUnreadMessages, listMessages } from "@/server/messages";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
-function formatDate(date: Date | null) {
+function formatDate(date: Date | string | null) {
   if (!date) return "Not yet edited";
-  return new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeStyle: "short" }).format(date);
+  return new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeStyle: "short" }).format(new Date(date));
 }
 
 export default async function DashboardPage() {

@@ -1,12 +1,6 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Native SQL Server driver: load from node_modules at runtime instead of bundling.
-  serverExternalPackages: ["mssql", "msnodesqlv8"],
-  experimental: {
-    // Admin uploads (PDFs up to 25 MB) go through server actions.
-    serverActions: { bodySizeLimit: "30mb" },
-  },
   poweredByHeader: false,
   async headers() {
     return [

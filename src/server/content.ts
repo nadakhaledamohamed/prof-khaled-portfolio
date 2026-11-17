@@ -1,7 +1,7 @@
 import { revalidatePath, revalidateTag, unstable_cache } from "next/cache";
 import { defaultContent } from "@/content";
 import type { SiteContent } from "@/content/types";
-import { db, sql } from "./db";
+import { db } from "./db";
 
 const CONTENT_ID = "site";
 export const CONTENT_TAG = "site-content";
@@ -27,39 +27,38 @@ function mergeDefaults<T>(base: T, stored: unknown): T {
   return (typeof stored === typeof base && stored !== undefined ? stored : base) as T;
 }
 
-/** Reads the stored document, seeding it from the defaults on first run. Throws if the database fails. */
-export async function readSiteContent(): Promise<{ content: SiteContent; updatedAt: Date | null; updatedBy: string | null }> {
-  const pool = await db();
-  const result = await pool
-    .request()
-    .input("id", sql.NVarChar(32), CONTENT_ID)
-    .query<{ Json: string; UpdatedAt: Date; UpdatedBy: string | null }>(
-      "SELECT Json, UpdatedAt, UpdatedBy FROM dbo.WebContent WHERE Id = @id",
-    );
+interface ContentRow {
+  json: unknown;
+  updated_at: string | Date;
+  updated_by: string | null;
+}
 
-  const row = result.recordset[0];
+/** Reads the stored document, seeding it from the defaults on first run. Throws if the database fails. */
+export async function readSiteContent(): Promise<{
+  content: SiteContent;
+  updatedAt: Date | null;
+  updatedBy: string | null;
+}> {
+  const q = await db();
+  const rows = (await q`
+    SELECT json, updated_at, updated_by FROM web_content WHERE id = ${CONTENT_ID}
+  `) as ContentRow[];
+
+  const row = rows[0];
   if (!row) {
-    // First run: store the bundled content. The lock hints make concurrent first requests
-    // wait for each other instead of colliding on the primary key.
-    await pool
-      .request()
-      .input("id", sql.NVarChar(32), CONTENT_ID)
-      .input("json", sql.NVarChar(sql.MAX), JSON.stringify(defaultContent))
-      .query(`
-        INSERT INTO dbo.WebContent (Id, Json, UpdatedBy)
-        SELECT @id, @json, N'seed'
-        WHERE NOT EXISTS (SELECT 1 FROM dbo.WebContent WITH (UPDLOCK, HOLDLOCK) WHERE Id = @id);
-      `)
-      .catch((error: { number?: number }) => {
-        if (error?.number !== 2627) throw error; // 2627 = another request seeded it first
-      });
+    await q`
+      INSERT INTO web_content (id, json, updated_by)
+      VALUES (${CONTENT_ID}, ${JSON.stringify(defaultContent)}::jsonb, 'seed')
+      ON CONFLICT (id) DO NOTHING
+    `;
     return { content: defaultContent, updatedAt: null, updatedBy: null };
   }
 
+  const stored = typeof row.json === "string" ? JSON.parse(row.json) : row.json;
   return {
-    content: mergeDefaults(defaultContent, JSON.parse(row.Json)),
-    updatedAt: row.UpdatedAt,
-    updatedBy: row.UpdatedBy,
+    content: mergeDefaults(defaultContent, stored),
+    updatedAt: new Date(row.updated_at),
+    updatedBy: row.updated_by,
   };
 }
 
@@ -87,16 +86,13 @@ export async function getSiteContent(): Promise<SiteContent> {
 }
 
 export async function writeSiteContent(content: SiteContent, updatedBy: string) {
-  const pool = await db();
-  await pool
-    .request()
-    .input("id", sql.NVarChar(32), CONTENT_ID)
-    .input("json", sql.NVarChar(sql.MAX), JSON.stringify(content))
-    .input("by", sql.NVarChar(100), updatedBy)
-    .query(`
-      UPDATE dbo.WebContent SET Json = @json, UpdatedAt = SYSUTCDATETIME(), UpdatedBy = @by WHERE Id = @id;
-      IF @@ROWCOUNT = 0 INSERT INTO dbo.WebContent (Id, Json, UpdatedBy) VALUES (@id, @json, @by);
-    `);
+  const q = await db();
+  await q`
+    INSERT INTO web_content (id, json, updated_at, updated_by)
+    VALUES (${CONTENT_ID}, ${JSON.stringify(content)}::jsonb, now(), ${updatedBy})
+    ON CONFLICT (id) DO UPDATE
+      SET json = EXCLUDED.json, updated_at = now(), updated_by = EXCLUDED.updated_by
+  `;
 
   // Refresh the public pages right away.
   revalidateTag(CONTENT_TAG);

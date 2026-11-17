@@ -17,7 +17,7 @@ import {
   verifyAspNetHash,
 } from "@/server/auth";
 import { readSiteContent, writeSiteContent } from "@/server/content";
-import { deleteMedia, saveUpload, UploadError, type UploadKind } from "@/server/media";
+import { deleteMedia, isBlobUrl, registerMedia } from "@/server/media";
 import { removeMessage, setMessageRead } from "@/server/messages";
 import {
   dataSchemas,
@@ -58,7 +58,7 @@ export async function loginAction(_prev: LoginState, formData: FormData): Promis
     user = await findAdminByUsername(username);
   } catch (error) {
     console.error("[admin] login lookup failed", error);
-    return { error: "The database is not reachable. Check that SQL Server is running." };
+    return { error: "The database is not reachable. Please try again in a moment." };
   }
 
   if (!user || !verifyAspNetHash(password, user.PasswordHash)) {
@@ -132,23 +132,30 @@ export async function saveDataSection(key: string, value: unknown): Promise<Acti
 
 /* ---------- Media ---------- */
 
-export type UploadResult = { ok: true; url: string; name: string } | { ok: false; error: string };
-
-export async function uploadMediaAction(formData: FormData): Promise<UploadResult> {
+/** Records a file the browser just uploaded to Blob storage, for the media library. */
+export async function registerMediaAction(file: {
+  url: string;
+  pathname: string;
+  name: string;
+  type: string;
+  size: number;
+}): Promise<ActionResult> {
   await requireAdmin();
-  const file = formData.get("file");
-  const acceptRaw = String(formData.get("accept") ?? "any");
-  const accept: UploadKind = acceptRaw === "image" || acceptRaw === "pdf" ? acceptRaw : "any";
-  if (!(file instanceof File)) return { ok: false, error: "Choose a file to upload." };
-
+  if (!isBlobUrl(file.url) || typeof file.pathname !== "string" || !Number.isFinite(file.size)) {
+    return { ok: false, error: "Invalid upload." };
+  }
   try {
-    const saved = await saveUpload(file, accept);
+    await registerMedia({
+      url: file.url,
+      pathname: file.pathname.slice(0, 500),
+      name: String(file.name || file.pathname).slice(0, 255),
+      type: String(file.type || "application/octet-stream").slice(0, 100),
+      size: Math.max(0, Math.round(file.size)),
+    });
     revalidatePath("/admin/media");
-    return { ok: true, url: saved.url, name: saved.name };
-  } catch (error) {
-    if (error instanceof UploadError) return { ok: false, error: error.message };
-    console.error("[admin] upload failed", error);
-    return { ok: false, error: "Upload failed. Please try again." };
+    return { ok: true };
+  } catch (err) {
+    return failure(err, "The file was uploaded but could not be added to the media library.");
   }
 }
 

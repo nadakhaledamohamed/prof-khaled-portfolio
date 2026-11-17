@@ -1,4 +1,4 @@
-import { db, sql } from "./db";
+import { db } from "./db";
 
 export interface MessageRow {
   Id: number;
@@ -8,7 +8,7 @@ export interface MessageRow {
   Message: string;
   Locale: string | null;
   IsRead: boolean;
-  CreatedAt: Date;
+  CreatedAt: Date | string;
 }
 
 export async function saveMessage(input: {
@@ -18,47 +18,34 @@ export async function saveMessage(input: {
   message: string;
   locale?: string;
 }) {
-  const pool = await db();
-  await pool
-    .request()
-    .input("name", sql.NVarChar(100), input.name)
-    .input("email", sql.NVarChar(150), input.email)
-    .input("subject", sql.NVarChar(150), input.subject)
-    .input("message", sql.NVarChar(sql.MAX), input.message)
-    .input("locale", sql.NVarChar(5), input.locale ?? null)
-    .query(
-      "INSERT INTO dbo.WebMessages (Name, Email, Subject, Message, Locale) VALUES (@name, @email, @subject, @message, @locale)",
-    );
+  const q = await db();
+  await q`
+    INSERT INTO web_messages (name, email, subject, message, locale)
+    VALUES (${input.name}, ${input.email}, ${input.subject}, ${input.message}, ${input.locale ?? null})
+  `;
 }
 
-export async function listMessages() {
-  const pool = await db();
-  const result = await pool
-    .request()
-    .query<MessageRow>(
-      "SELECT Id, Name, Email, Subject, Message, Locale, IsRead, CreatedAt FROM dbo.WebMessages ORDER BY CreatedAt DESC",
-    );
-  return result.recordset;
+export async function listMessages(): Promise<MessageRow[]> {
+  const q = await db();
+  return (await q`
+    SELECT id AS "Id", name AS "Name", email AS "Email", subject AS "Subject", message AS "Message",
+           locale AS "Locale", is_read AS "IsRead", created_at AS "CreatedAt"
+    FROM web_messages ORDER BY created_at DESC
+  `) as MessageRow[];
 }
 
-export async function countUnreadMessages() {
-  const pool = await db();
-  const result = await pool
-    .request()
-    .query<{ n: number }>("SELECT COUNT(*) AS n FROM dbo.WebMessages WHERE IsRead = 0");
-  return result.recordset[0]?.n ?? 0;
+export async function countUnreadMessages(): Promise<number> {
+  const q = await db();
+  const rows = (await q`SELECT count(*)::int AS n FROM web_messages WHERE NOT is_read`) as { n: number }[];
+  return rows[0]?.n ?? 0;
 }
 
 export async function setMessageRead(id: number, read: boolean) {
-  const pool = await db();
-  await pool
-    .request()
-    .input("id", sql.Int, id)
-    .input("read", sql.Bit, read)
-    .query("UPDATE dbo.WebMessages SET IsRead = @read WHERE Id = @id");
+  const q = await db();
+  await q`UPDATE web_messages SET is_read = ${read} WHERE id = ${id}`;
 }
 
 export async function removeMessage(id: number) {
-  const pool = await db();
-  await pool.request().input("id", sql.Int, id).query("DELETE FROM dbo.WebMessages WHERE Id = @id");
+  const q = await db();
+  await q`DELETE FROM web_messages WHERE id = ${id}`;
 }

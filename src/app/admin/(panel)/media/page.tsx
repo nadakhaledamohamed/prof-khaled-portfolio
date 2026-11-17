@@ -14,7 +14,7 @@ export default async function MediaPage() {
     // A file is "in use" when its link appears anywhere in the site content.
     const serialized = JSON.stringify(content);
     items = rows.map((row) => {
-      const url = `/media/${row.StoredName}`;
+      const url = row.Url;
       return {
         id: row.Id,
         url,

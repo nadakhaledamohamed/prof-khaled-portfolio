@@ -3,7 +3,8 @@
 import * as React from "react";
 import Image from "next/image";
 import { CircleAlert, ExternalLink, FileText, LoaderCircle, Upload, X } from "lucide-react";
-import { uploadMediaAction } from "@/app/admin/actions";
+import { upload } from "@vercel/blob/client";
+import { registerMediaAction } from "@/app/admin/actions";
 import { Input } from "@/components/ui/field";
 import { cn } from "@/lib/utils";
 
@@ -33,17 +34,37 @@ export function UploadField({ id, value, onChange, accept, clearable, placeholde
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file) return;
+
+    // Friendly checks first; the server enforces the same rules on the upload token.
+    const isPdf = file.type === "application/pdf";
+    const isImage = /^image\/(jpeg|png|webp|gif|avif)$/.test(file.type);
+    if (accept === "image" && !isImage) return setError("Please choose a JPG, PNG, WebP, GIF or AVIF image.");
+    if (accept === "pdf" && !isPdf) return setError("Please choose a PDF file.");
+    if (accept === "any" && !isPdf && !isImage) return setError("Use an image (JPG, PNG, WebP, GIF, AVIF) or a PDF.");
+    const max = isPdf ? 25 * 1024 * 1024 : 10 * 1024 * 1024;
+    if (file.size > max) return setError(`File is too large (max ${isPdf ? 25 : 10} MB).`);
+
     setError(null);
     setUploading(true);
     try {
-      const form = new FormData();
-      form.set("file", file);
-      form.set("accept", accept);
-      const result = await uploadMediaAction(form);
-      if (result.ok) onChange(result.url);
-      else setError(result.error);
-    } catch {
-      setError("Upload failed. The file may be too large.");
+      const safeName = file.name.toLowerCase().replace(/[^a-z0-9.]+/g, "-").replace(/^-+|-+$/g, "") || "file";
+      const blob = await upload(`media/${safeName}`, file, {
+        access: "public",
+        handleUploadUrl: "/api/admin/upload",
+        clientPayload: accept,
+        multipart: file.size > 5 * 1024 * 1024,
+      });
+      await registerMediaAction({
+        url: blob.url,
+        pathname: blob.pathname,
+        name: file.name,
+        type: file.type,
+        size: file.size,
+      });
+      onChange(blob.url);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "";
+      setError(/signed in/i.test(message) ? "Your session expired. Please sign in again." : "Upload failed. Please try again.");
     } finally {
       setUploading(false);
     }

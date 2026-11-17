@@ -9,7 +9,7 @@ import {
   verifySessionToken,
   type AdminSession,
 } from "@/lib/session";
-import { db, sql } from "./db";
+import { db } from "./db";
 
 /* ---------- ASP.NET Core Identity password hashes ----------
  * The AdminUsers table was written by ASP.NET's PasswordHasher, so the same format is used
@@ -69,36 +69,26 @@ interface AdminRow {
 }
 
 export async function findAdminByUsername(username: string) {
-  const pool = await db();
-  const result = await pool
-    .request()
-    .input("u", sql.NVarChar(200), username)
-    .query<AdminRow>("SELECT TOP 1 Id, Username, PasswordHash FROM dbo.AdminUsers WHERE Username = @u");
-  return result.recordset[0] ?? null;
+  const q = await db();
+  const rows = (await q`
+    SELECT id AS "Id", username AS "Username", password_hash AS "PasswordHash"
+    FROM admin_users WHERE lower(username) = lower(${username}) LIMIT 1
+  `) as AdminRow[];
+  return rows[0] ?? null;
 }
 
 export async function findAdminById(id: number) {
-  const pool = await db();
-  const result = await pool
-    .request()
-    .input("id", sql.Int, id)
-    .query<AdminRow>("SELECT TOP 1 Id, Username, PasswordHash FROM dbo.AdminUsers WHERE Id = @id");
-  return result.recordset[0] ?? null;
-}
-
-export async function countAdmins() {
-  const pool = await db();
-  const result = await pool.request().query<{ n: number }>("SELECT COUNT(*) AS n FROM dbo.AdminUsers");
-  return result.recordset[0]?.n ?? 0;
+  const q = await db();
+  const rows = (await q`
+    SELECT id AS "Id", username AS "Username", password_hash AS "PasswordHash"
+    FROM admin_users WHERE id = ${id} LIMIT 1
+  `) as AdminRow[];
+  return rows[0] ?? null;
 }
 
 export async function updateAdminPassword(id: number, password: string) {
-  const pool = await db();
-  await pool
-    .request()
-    .input("id", sql.Int, id)
-    .input("hash", sql.NVarChar(sql.MAX), createAspNetHash(password))
-    .query("UPDATE dbo.AdminUsers SET PasswordHash = @hash WHERE Id = @id");
+  const q = await db();
+  await q`UPDATE admin_users SET password_hash = ${createAspNetHash(password)} WHERE id = ${id}`;
 }
 
 /* ---------- Sessions ---------- */
