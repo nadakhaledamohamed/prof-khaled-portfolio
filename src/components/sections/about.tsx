@@ -2,10 +2,11 @@ import { Quote } from "lucide-react";
 import { Section, SectionHeading } from "@/components/layout/section";
 import { Parallax } from "@/components/motion/parallax";
 import { Reveal, Stagger, StaggerItem } from "@/components/motion/reveal";
+import { Expandable } from "@/components/content/expandable";
 import { Rich } from "@/components/rich";
 import type { Dictionary } from "@/content/types";
 
-export function About({ t }: { t: Dictionary["about"] }) {
+export function About({ t, ui }: { t: Dictionary["about"]; ui: Dictionary["ui"] }) {
   return (
     <Section id="about">
       <div className="grid gap-12 lg:grid-cols-[0.9fr_1.1fr] lg:gap-20">
@@ -33,15 +34,26 @@ export function About({ t }: { t: Dictionary["about"] }) {
         </div>
 
         <div>
-          <div className="space-y-6 text-base leading-[1.8] text-muted-foreground text-pretty sm:text-lg rtl:leading-[2]">
-            {t.paragraphs.map((paragraph, i) => (
-              <Reveal key={i} delay={i * 0.05}>
-                <p>
-                  <Rich text={paragraph} />
+          <Reveal>
+            <Expandable
+              className="text-base leading-[1.8] text-muted-foreground text-pretty sm:text-lg rtl:leading-[2]"
+              labels={{ more: ui.readMore, less: ui.showLess }}
+              preview={
+                <p className="ltr:first-letter:float-left ltr:first-letter:me-2 ltr:first-letter:font-display ltr:first-letter:text-6xl ltr:first-letter:leading-[0.85] ltr:first-letter:text-primary">
+                  <Rich text={t.paragraphs[0] ?? ""} />
                 </p>
-              </Reveal>
-            ))}
-          </div>
+              }
+              rest={
+                <div className="space-y-6 pt-6">
+                  {t.paragraphs.slice(1).map((paragraph, i) => (
+                    <p key={i}>
+                      <Rich text={paragraph} />
+                    </p>
+                  ))}
+                </div>
+              }
+            />
+          </Reveal>
 
           <Stagger role="list" className="mt-12 grid grid-cols-2 gap-3 sm:gap-4">
             {t.facts.map((fact) => (

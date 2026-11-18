@@ -4,7 +4,9 @@ import { Books } from "@/components/sections/books";
 import { Contact } from "@/components/sections/contact";
 import { Gallery } from "@/components/sections/gallery";
 import { Hero } from "@/components/sections/hero";
-import { ConsultCta, Heritage, LatestArticles, LibraryTeaser, TalksTeaser } from "@/components/sections/home-teasers";
+import { ConsultCta, LatestArticles, LibraryTeaser, TalksTeaser } from "@/components/sections/home-teasers";
+import { Legacy } from "@/components/sections/legacy";
+import { SectionDock } from "@/components/layout/section-dock";
 import { Impact } from "@/components/sections/impact";
 import { Journey } from "@/components/sections/journey";
 import { Marquee } from "@/components/sections/marquee";
@@ -26,9 +28,21 @@ export default async function HomePage({ params }: { params: LocaleParams }) {
   return (
     <>
       <Hero t={t.hero} profile={t.profile} common={t.common} data={data} />
+      <Legacy
+        t={t.heritage}
+        locale={locale}
+        banner={data.links.banner}
+        counts={{
+          works: 40,
+          books: data.books.length,
+          research: data.publications.length,
+          articles: data.articles.length,
+          talks: data.talks.length,
+          years: new Date().getFullYear() - 1995,
+        }}
+      />
       <Marquee t={t.marquee} />
-      <About t={t.about} />
-      <Heritage t={t.heritage} banner={data.links.banner} />
+      <About t={t.about} ui={t.ui} />
       <Impact
         t={t.impact}
         categories={t.publications.categories}
@@ -48,6 +62,7 @@ export default async function HomePage({ params }: { params: LocaleParams }) {
         locale={locale}
         publications={data.publications}
         scholarUrl={data.links.scholar}
+        views={t.views}
         limit={8}
       />
       <LatestArticles t={t} locale={locale} articles={data.articles} />
@@ -67,6 +82,7 @@ export default async function HomePage({ params }: { params: LocaleParams }) {
       <Network t={t.network} locale={locale} collaborators={data.collaborators} />
       <ConsultCta t={t} locale={locale} />
       <Contact t={t.contact} opensNewTab={t.common.opensNewTab} locale={locale} socialLinks={socialLinksFrom(data.links)} />
+      <SectionDock t={t.dock} locale={locale} />
     </>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { createPortal } from "react-dom";
 import Image from "next/image";
 import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
@@ -47,8 +48,12 @@ export function Gallery({ t, opensNewTab, items: allItems, locale, limit, viewAl
     triggerRef.current?.focus();
   }, []);
 
+  const [dir, setDir] = React.useState(1);
+  const [portal, setPortal] = React.useState(false);
+  React.useEffect(() => setPortal(true), []);
   const step = React.useCallback(
     (delta: number) => {
+      setDir(delta);
       setOpenIndex((i) => (i === null ? i : (i + delta + images.length) % images.length));
     },
     [images.length],
@@ -103,16 +108,16 @@ export function Gallery({ t, opensNewTab, items: allItems, locale, limit, viewAl
           })}
         </div>
 
-        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 xl:grid-cols-5">
-          <AnimatePresence mode="popLayout" initial={false}>
-            {shown.map((item) => (
+        {/* Masonry: CSS columns keep each image at its natural aspect ratio. */}
+        <ul key={filter} className="columns-2 gap-3 sm:columns-3 sm:gap-4 lg:columns-4 xl:columns-5">
+            {shown.map((item, i) => (
               <motion.li
                 key={item.src}
-                layout
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                transition={{ duration: 0.45, ease: easeOutExpo }}
+                className="mb-3 break-inside-avoid sm:mb-4"
+                initial={{ opacity: 0, y: 18 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "0px 0px -40px 0px" }}
+                transition={{ duration: 0.6, delay: (i % 5) * 0.05, ease: easeOutExpo }}
               >
                 {item.type === "image" ? (
                   <button
@@ -122,15 +127,16 @@ export function Gallery({ t, opensNewTab, items: allItems, locale, limit, viewAl
                       setOpenIndex(images.indexOf(item));
                     }}
                     aria-label={fmt(t.viewImage, { title: item.title })}
-                    className="group relative block aspect-[4/3] w-full overflow-hidden rounded-2xl border border-border bg-muted text-start"
+                    className="group relative block w-full overflow-hidden rounded-2xl border border-border bg-muted text-start"
                   >
                     <Image
                       src={item.src}
                       alt=""
-                      fill
-                      sizes="(min-width: 1280px) 210px, (min-width: 640px) 30vw, 45vw"
+                      width={480}
+                      height={360}
+                      sizes="(min-width: 1280px) 260px, (min-width: 640px) 33vw, 50vw"
                       unoptimized={isUpload(item.src)}
-                      className="object-cover transition-transform duration-700 ease-out group-hover:scale-110"
+                      className="block h-auto w-full transition-transform duration-700 ease-out group-hover:scale-105"
                     />
                     <span className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/85 via-black/20 to-transparent p-3.5 opacity-0 transition-opacity duration-500 group-hover:opacity-100 group-focus-visible:opacity-100">
                       <span className="line-clamp-2 text-xs font-semibold leading-snug text-white">
@@ -161,7 +167,6 @@ export function Gallery({ t, opensNewTab, items: allItems, locale, limit, viewAl
                 )}
               </motion.li>
             ))}
-          </AnimatePresence>
         </ul>
         {viewAll && limit && items.length > limit && (
           <div className="mt-8 flex justify-center">
@@ -177,7 +182,7 @@ export function Gallery({ t, opensNewTab, items: allItems, locale, limit, viewAl
       </Reveal>
 
       {/* Lightbox */}
-      <AnimatePresence>
+      {portal && createPortal(<AnimatePresence>
         {current && openIndex !== null && (
           <motion.div
             role="dialog"
@@ -206,14 +211,29 @@ export function Gallery({ t, opensNewTab, items: allItems, locale, limit, viewAl
             </div>
 
             <div className="relative flex min-h-0 flex-1 items-center justify-center px-4 sm:px-20">
-              <AnimatePresence mode="wait">
+              <AnimatePresence mode="popLayout" initial={false} custom={dir}>
                 <motion.div
                   key={current.src}
-                  className="relative h-[70svh] w-full max-w-3xl"
-                  initial={{ opacity: 0, scale: 0.94 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.94 }}
-                  transition={{ duration: 0.3, ease: easeOutExpo }}
+                  custom={dir}
+                  className="relative h-[70svh] w-full max-w-3xl cursor-grab touch-pan-y active:cursor-grabbing"
+                  variants={{
+                    enter: (d: number) => ({ opacity: 0, x: d * (rtl ? -80 : 80), scale: 0.96 }),
+                    center: { opacity: 1, x: 0, scale: 1 },
+                    exit: (d: number) => ({ opacity: 0, x: d * (rtl ? 80 : -80), scale: 0.96 }),
+                  }}
+                  initial="enter"
+                  animate="center"
+                  exit="exit"
+                  transition={{ duration: 0.4, ease: easeOutExpo }}
+                  drag={images.length > 1 ? "x" : false}
+                  dragConstraints={{ left: 0, right: 0 }}
+                  dragElastic={0.6}
+                  onDragEnd={(_, info) => {
+                    const swipe = info.offset.x + info.velocity.x * 0.2;
+                    if (Math.abs(swipe) < 80) return;
+                    // Swiping towards the reading start shows the next image.
+                    step(swipe < 0 !== rtl ? 1 : -1);
+                  }}
                   onClick={(event) => event.stopPropagation()}
                 >
                   <Image
@@ -222,7 +242,8 @@ export function Gallery({ t, opensNewTab, items: allItems, locale, limit, viewAl
                     fill
                     sizes="(min-width: 768px) 768px, 100vw"
                     unoptimized={isUpload(current.src)}
-                    className="object-contain drop-shadow-2xl"
+                    draggable={false}
+                    className="pointer-events-none select-none object-contain drop-shadow-2xl"
                   />
                 </motion.div>
               </AnimatePresence>
@@ -256,7 +277,7 @@ export function Gallery({ t, opensNewTab, items: allItems, locale, limit, viewAl
             </div>
           </motion.div>
         )}
-      </AnimatePresence>
+      </AnimatePresence>, document.body)}
     </>
   );
 

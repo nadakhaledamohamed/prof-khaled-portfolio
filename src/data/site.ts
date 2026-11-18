@@ -46,6 +46,7 @@ export const navIds: NavId[] = [
 /** Every section id on the home page, in document order (used for active-section tracking). */
 export const sectionIds = [
   "top",
+  "legacy",
   "about",
   "impact",
   "journey",
@@ -54,6 +55,7 @@ export const sectionIds = [
   "publications",
   "articles",
   "talks",
+  "library",
   "awards",
   "gallery",
   "network",

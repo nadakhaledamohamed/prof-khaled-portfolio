@@ -1,8 +1,6 @@
-import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, BookOpenText, Library, MessagesSquare, Server } from "lucide-react";
 import { Section, SectionHeading } from "@/components/layout/section";
-import { Parallax } from "@/components/motion/parallax";
 import { Reveal, Stagger, StaggerItem } from "@/components/motion/reveal";
 import { ArticleCard } from "@/components/pages/article-card";
 import { TalksExplorer } from "@/components/pages/talks-explorer";
@@ -10,7 +8,7 @@ import { VideoGrid } from "@/components/pages/video-grid";
 import { Rich } from "@/components/rich";
 import { Button } from "@/components/ui/button";
 import type { Dictionary } from "@/content/types";
-import { isUpload, pagePaths } from "@/data/site";
+import { pagePaths } from "@/data/site";
 import { href, type Locale } from "@/i18n/config";
 import { arrowNudge, cn, flipRtl } from "@/lib/utils";
 import type { SiteData } from "@/types";
@@ -22,31 +20,6 @@ function ViewAll({ to, label }: { to: string; label: string }) {
         {label} <ArrowRight className={cn(arrowNudge, flipRtl)} />
       </Link>
     </Button>
-  );
-}
-
-/** Full-width banner with the "heritage" motto over the banner artwork. */
-export function Heritage({ t, banner }: { t: Dictionary["heritage"]; banner: string }) {
-  if (!banner) return null;
-  return (
-    <section aria-label={t.eyebrow} className="relative z-10 py-10 sm:py-16">
-      <div className="container-page">
-        <div className="relative isolate overflow-hidden rounded-[2rem] border border-border">
-          <Parallax offset={50} className="absolute -inset-y-16 inset-x-0 -z-10">
-            <Image src={banner} alt="" fill sizes="100vw" unoptimized={isUpload(banner)} className="object-cover object-center" />
-          </Parallax>
-          <div className="absolute inset-0 -z-10 bg-gradient-to-r from-[#070a12]/95 via-[#070a12]/75 to-[#070a12]/20 rtl:bg-gradient-to-l" />
-          <Reveal className="max-w-2xl p-8 text-white sm:p-14 lg:p-20">
-            <p className="mb-5 flex items-center gap-3 font-mono text-[11px] uppercase tracking-[0.28em] text-white/70">
-              <span aria-hidden className="h-px w-10 bg-gradient-to-r from-[#8c9bff] to-[#5eead4]" />
-              {t.eyebrow}
-            </p>
-            <p className="font-display text-3xl font-medium leading-tight text-balance sm:text-5xl rtl:leading-[1.4]">{t.title}</p>
-            <p className="mt-6 max-w-lg leading-relaxed text-white/75">{t.text}</p>
-          </Reveal>
-        </div>
-      </div>
-    </section>
   );
 }
 

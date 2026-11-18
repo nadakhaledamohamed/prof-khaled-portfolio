@@ -207,6 +207,7 @@ export interface Dictionary {
     clear: string;
     viewAll: string;
     readMore: string;
+    showLess: string;
     back: string;
     open: string;
     download: string;
@@ -217,7 +218,50 @@ export interface Dictionary {
     updated: string;
     since: string;
   };
-  heritage: { eyebrow: string; title: string; text: string };
+  heritage: {
+    eyebrow: string;
+    title: string;
+    text: string;
+    /** The legacy phrase, always shown in Arabic. */
+    phrase: string;
+    /** Translation shown under the phrase (English page) or a short gloss (Arabic page). */
+    translation: string;
+    archiveTitle: string;
+    archive: { works: string; books: string; research: string; articles: string; talks: string; years: string };
+    explore: string;
+  };
+  dock: {
+    label: string;
+    jump: string;
+    prev: string;
+    next: string;
+    close: string;
+    sections: Record<
+      | "top"
+      | "legacy"
+      | "about"
+      | "impact"
+      | "journey"
+      | "research"
+      | "books"
+      | "publications"
+      | "articles"
+      | "talks"
+      | "library"
+      | "awards"
+      | "gallery"
+      | "network"
+      | "contact",
+      string
+    >;
+  };
+  shelf: {
+    featured: string;
+    filters: { all: string; ar: string; en: string; readable: string };
+    filterLabel: string;
+    details: string;
+  };
+  views: { label: string; list: string; cards: string };
   cvPage: { download: string; sections: string };
   booksPage: {
     authors: string;

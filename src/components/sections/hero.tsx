@@ -59,7 +59,7 @@ export function Hero({ t, profile, common, data }: HeroProps) {
             </Badge>
           </motion.div>
 
-          <h1 className="font-display text-[2.75rem] font-medium leading-[0.98] tracking-[-0.03em] sm:text-7xl lg:text-[4.75rem] xl:text-[5.5rem] rtl:leading-[1.3]">
+          <h1 className="font-display text-[2.35rem] font-medium leading-[1.04] tracking-[-0.025em] sm:text-6xl lg:text-[3.75rem] xl:text-[4.25rem] rtl:leading-[1.3]">
             <Words text={t.nameLine1} delay={start + 0.1} className="block text-balance" />
             <Words text={t.nameLine2} delay={start + 0.34} className="text-gradient block italic" />
           </h1>

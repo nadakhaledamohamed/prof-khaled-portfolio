@@ -1,5 +1,5 @@
 import { PageHero, StatPill } from "@/components/layout/page-hero";
-import { Books } from "@/components/sections/books";
+import { BookLibrary } from "@/components/pages/book-library";
 import { loadPage, pageMetadata, type LocaleParams } from "@/server/page";
 
 export const revalidate = 300;
@@ -21,7 +21,9 @@ export default async function BooksPage({ params }: { params: LocaleParams }) {
           {readable > 0 && <StatPill value={readable} label={t.booksPage.readOnline} />}
         </div>
       </PageHero>
-      <Books bare t={t.books} page={t.booksPage} ui={t.ui} locale={locale} books={data.books} />
+      <div className="container-page pb-24">
+        <BookLibrary filters t={t.books} page={t.booksPage} shelf={t.shelf} locale={locale} books={data.books} />
+      </div>
     </>
   );
 }

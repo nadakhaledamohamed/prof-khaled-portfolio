@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { flushSync } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
@@ -27,7 +28,22 @@ export function ThemeToggle({ labels, className }: ThemeToggleProps) {
       dir="ltr"
       aria-checked={isDark}
       aria-label={isDark ? labels.toLight : labels.toDark}
-      onClick={() => setTheme(isDark ? "light" : "dark")}
+      onClick={(event) => {
+        const next = isDark ? "light" : "dark";
+        const doc = document as Document & { startViewTransition?: (cb: () => void) => unknown };
+        const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        if (!doc.startViewTransition || reduce) return setTheme(next);
+        // Circular reveal of the new theme, growing from the switch.
+        const rect = event.currentTarget.getBoundingClientRect();
+        const x = rect.left + rect.width / 2;
+        const y = rect.top + rect.height / 2;
+        const r = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
+        const root = document.documentElement;
+        root.style.setProperty("--vt-x", `${x}px`);
+        root.style.setProperty("--vt-y", `${y}px`);
+        root.style.setProperty("--vt-r", `${r}px`);
+        doc.startViewTransition(() => flushSync(() => setTheme(next)));
+      }}
       className={cn(
         "neu-inset relative flex h-9 w-[4.25rem] shrink-0 items-center rounded-full px-1 transition-transform duration-300 active:scale-95",
         isDark ? "justify-end" : "justify-start",

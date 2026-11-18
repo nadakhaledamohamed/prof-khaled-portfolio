@@ -20,7 +20,7 @@ export function SearchBox({
   className?: string;
 }) {
   return (
-    <label className={cn("relative block", className)}>
+    <label className={cn("relative block min-w-0", className)}>
       <span className="sr-only">{label}</span>
       <Search aria-hidden className="pointer-events-none absolute start-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
       <input
@@ -28,7 +28,7 @@ export function SearchBox({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="h-12 w-full rounded-full border border-border bg-background/60 pe-10 ps-11 text-sm backdrop-blur transition-[border-color,box-shadow] duration-300 placeholder:text-muted-foreground/70 hover:border-foreground/25 focus:border-primary focus:shadow-[0_0_0_4px_color-mix(in_srgb,var(--primary)_16%,transparent)] focus:outline-none [&::-webkit-search-cancel-button]:hidden"
+        className="h-12 w-full min-w-0 rounded-full border border-border bg-background/60 pe-10 ps-11 text-sm backdrop-blur transition-[border-color,box-shadow] duration-300 placeholder:text-muted-foreground/70 hover:border-foreground/25 focus:border-primary focus:shadow-[0_0_0_4px_color-mix(in_srgb,var(--primary)_16%,transparent)] focus:outline-none [&::-webkit-search-cancel-button]:hidden"
       />
       {value && (
         <button
