@@ -3,7 +3,8 @@
 import * as React from "react";
 import Image from "next/image";
 import { AnimatePresence, motion } from "framer-motion";
-import { ChevronLeft, ChevronRight, Expand, FileText, X } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, ChevronLeft, ChevronRight, Expand, FileText, X } from "lucide-react";
 import { Section, SectionHeading } from "@/components/layout/section";
 import { Reveal } from "@/components/motion/reveal";
 import type { Dictionary } from "@/content/types";
@@ -20,9 +21,14 @@ interface GalleryProps {
   opensNewTab: string;
   items: GalleryItem[];
   locale: Locale;
+  /** Home page: show this many items and a link to the full gallery. */
+  limit?: number;
+  viewAll?: { href: string; label: string };
+  /** Render without the section heading (the gallery page has its own hero). */
+  bare?: boolean;
 }
 
-export function Gallery({ t, opensNewTab, items: allItems, locale }: GalleryProps) {
+export function Gallery({ t, opensNewTab, items: allItems, locale, limit, viewAll, bare }: GalleryProps) {
   const rtl = locale === "ar";
   const [filter, setFilter] = React.useState<Filter>("all");
   const [openIndex, setOpenIndex] = React.useState<number | null>(null);
@@ -31,6 +37,8 @@ export function Gallery({ t, opensNewTab, items: allItems, locale }: GalleryProp
 
   const images = React.useMemo(() => allItems.filter((item) => item.type === "image"), [allItems]);
   const items = allItems.filter((item) => filter === "all" || item.type === filter);
+  const shown = limit ? items.slice(0, limit) : items;
+  const hasPdf = allItems.some((item) => item.type === "pdf");
   const current = openIndex === null ? null : images[openIndex];
   const isOpen = openIndex !== null;
 
@@ -63,18 +71,10 @@ export function Gallery({ t, opensNewTab, items: allItems, locale }: GalleryProp
     };
   }, [isOpen, close, step, rtl]);
 
-  return (
-    <Section id="gallery">
-      <SectionHeading
-        id="gallery"
-        index="08"
-        eyebrow={t.eyebrow}
-        title={t.title}
-        description={t.description}
-      />
-
+  const body = (
+    <>
       <Reveal>
-        <div role="group" aria-label={t.filterLabel} className="mb-8 flex flex-wrap gap-1.5">
+        <div role="group" aria-label={t.filterLabel} className={cn("mb-8 flex flex-wrap gap-1.5", !hasPdf && "hidden")}>
           {filterIds.map((id) => {
             const selected = filter === id;
             return (
@@ -105,7 +105,7 @@ export function Gallery({ t, opensNewTab, items: allItems, locale }: GalleryProp
 
         <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 xl:grid-cols-5">
           <AnimatePresence mode="popLayout" initial={false}>
-            {items.map((item) => (
+            {shown.map((item) => (
               <motion.li
                 key={item.src}
                 layout
@@ -122,7 +122,7 @@ export function Gallery({ t, opensNewTab, items: allItems, locale }: GalleryProp
                       setOpenIndex(images.indexOf(item));
                     }}
                     aria-label={fmt(t.viewImage, { title: item.title })}
-                    className="group relative block aspect-[3/4] w-full overflow-hidden rounded-2xl border border-border bg-muted text-start"
+                    className="group relative block aspect-[4/3] w-full overflow-hidden rounded-2xl border border-border bg-muted text-start"
                   >
                     <Image
                       src={item.src}
@@ -146,7 +146,7 @@ export function Gallery({ t, opensNewTab, items: allItems, locale }: GalleryProp
                     href={item.src}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="glass group flex aspect-[3/4] w-full flex-col justify-between rounded-2xl p-4 transition-[translate,border-color] duration-500 hover:-translate-y-1 hover:border-primary/40"
+                    className="glass group flex aspect-[4/3] w-full flex-col justify-between rounded-2xl p-4 transition-[translate,border-color] duration-500 hover:-translate-y-1 hover:border-primary/40"
                   >
                     <span className="neu grid size-12 place-items-center rounded-2xl text-primary transition-transform duration-500 group-hover:-rotate-6 group-hover:scale-110">
                       <FileText className="size-5" aria-hidden />
@@ -163,6 +163,17 @@ export function Gallery({ t, opensNewTab, items: allItems, locale }: GalleryProp
             ))}
           </AnimatePresence>
         </ul>
+        {viewAll && limit && items.length > limit && (
+          <div className="mt-8 flex justify-center">
+            <Link
+              href={viewAll.href}
+              className="glass group inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium transition-colors hover:border-primary/40 hover:text-primary"
+            >
+              {viewAll.label} ({items.length})
+              <ArrowRight className={cn("size-4 transition-transform group-hover:translate-x-0.5 rtl:group-hover:-translate-x-0.5", flipRtl)} aria-hidden />
+            </Link>
+          </div>
+        )}
       </Reveal>
 
       {/* Lightbox */}
@@ -246,6 +257,15 @@ export function Gallery({ t, opensNewTab, items: allItems, locale }: GalleryProp
           </motion.div>
         )}
       </AnimatePresence>
+    </>
+  );
+
+  if (bare) return <div className="container-page pb-24">{body}</div>;
+
+  return (
+    <Section id="gallery">
+      <SectionHeading id="gallery" index="10" eyebrow={t.eyebrow} title={t.title} description={t.description} />
+      {body}
     </Section>
   );
 }

@@ -13,6 +13,8 @@ export const contactErrorCodes = [
   "subject_long",
   "message_short",
   "message_long",
+  "phone_invalid",
+  "organization_long",
 ] as const;
 export type ContactErrorCode = (typeof contactErrorCodes)[number];
 
@@ -38,18 +40,30 @@ export const contactSchema = z.object({
   message: z.string().trim().min(20, "message_short").max(3000, "message_long"),
   /** Honeypot — real visitors never fill this in. */
   company: z.string().max(0).optional(),
+  /** Consultation requests only. */
+  kind: z.enum(["contact", "consult"]).optional(),
+  phone: z
+    .string()
+    .trim()
+    .max(40, "phone_invalid")
+    .regex(/^[+()\d\s.-]*$/, "phone_invalid")
+    .optional(),
+  organization: z.string().trim().max(150, "organization_long").optional(),
+  consultType: z.enum(["research", "knowledge", "technical", "technology", "other"]).optional(),
 });
 
 export type ContactInput = z.infer<typeof contactSchema>;
-export type ContactField = "name" | "email" | "subject" | "message";
+export type ContactField = "name" | "email" | "subject" | "message" | "phone" | "organization";
 export type ContactErrors = Partial<Record<ContactField, ContactErrorCode>>;
 
-const fields: ContactField[] = ["name", "email", "subject", "message"];
+const fields: ContactField[] = ["name", "email", "subject", "message", "phone", "organization"];
 const requiredCode: Record<ContactField, ContactErrorCode> = {
   name: "name_required",
   email: "email_required",
   subject: "subject_required",
   message: "message_short",
+  phone: "phone_invalid",
+  organization: "organization_long",
 };
 
 function isCode(value: string): value is ContactErrorCode {

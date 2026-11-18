@@ -12,7 +12,7 @@ import type { Dictionary } from "@/content/types";
 import type { Stats } from "@/data/site";
 import { fmt, type Locale } from "@/i18n/config";
 import { cn, easeOutExpo } from "@/lib/utils";
-import type { MetricId, MetricValue, PublicationCategory } from "@/types";
+import type { MetricId, MetricsSince, MetricValue, PublicationCategory } from "@/types";
 
 const metricIcons: Record<MetricId, LucideIcon> = {
   citations: Quote,
@@ -155,9 +155,12 @@ interface ImpactProps {
   locale: Locale;
   metrics: MetricValue[];
   stats: Stats;
+  /** Google Scholar figures for recent years. */
+  since?: MetricsSince;
+  ui?: Dictionary["ui"];
 }
 
-export function Impact({ t, categories, locale, metrics, stats }: ImpactProps) {
+export function Impact({ t, categories, locale, metrics, stats, since, ui }: ImpactProps) {
   const [view, setView] = React.useState<ViewId>("works");
   const rtl = locale === "ar";
 
@@ -199,6 +202,33 @@ export function Impact({ t, categories, locale, metrics, stats }: ImpactProps) {
           );
         })}
       </Stagger>
+
+      {since && ui && (
+        <Reveal className="mt-5">
+          <div className="glass flex flex-col gap-4 rounded-3xl px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+            <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">{fmt(ui.since, { year: since.year })}</p>
+            <dl className="flex flex-wrap gap-x-8 gap-y-3">
+              {[
+                { label: t.metrics.citations.label, value: since.citations },
+                { label: t.metrics["h-index"].label, value: since.h },
+                { label: t.metrics["i10-index"].label, value: since.i10 },
+              ].map((item) => (
+                <div key={item.label} className="flex items-baseline gap-2">
+                  <dd className="font-display text-2xl font-medium tabular-nums">
+                    <Counter value={item.value} />
+                  </dd>
+                  <dt className="text-sm text-muted-foreground">{item.label}</dt>
+                </div>
+              ))}
+            </dl>
+            {since.updated && (
+              <p className="text-xs text-muted-foreground">
+                {ui.updated}: <time dateTime={since.updated}>{since.updated}</time>
+              </p>
+            )}
+          </div>
+        </Reveal>
+      )}
 
       <Reveal className="mt-5">
         <div className="glass rounded-3xl p-5 sm:p-8">

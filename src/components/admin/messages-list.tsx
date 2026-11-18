@@ -8,6 +8,10 @@ import { cn } from "@/lib/utils";
 
 export interface MessageView {
   id: number;
+  kind: "contact" | "consult";
+  phone: string | null;
+  organization: string | null;
+  consultType: string | null;
   name: string;
   email: string;
   subject: string;
@@ -70,7 +74,14 @@ export function MessagesList({ messages }: { messages: MessageView[] }) {
                   {m.isRead ? <MailOpen className="size-4" aria-hidden /> : <Mail className="size-4" aria-hidden />}
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className={cn("block truncate", !m.isRead && "font-semibold")}>{m.subject}</span>
+                  <span className={cn("block truncate", !m.isRead && "font-semibold")}>
+                    {m.kind === "consult" && (
+                      <span className="me-2 rounded-full bg-accent/15 px-2 py-0.5 text-[11px] font-semibold text-accent">
+                        Consultation{m.consultType ? ` · ${m.consultType}` : ""}
+                      </span>
+                    )}
+                    {m.subject}
+                  </span>
                   <span className="block truncate text-xs text-muted-foreground">
                     {m.name} · {m.email}
                     {m.locale ? ` · ${m.locale === "ar" ? "Arabic site" : "English site"}` : ""}
@@ -80,6 +91,24 @@ export function MessagesList({ messages }: { messages: MessageView[] }) {
               </button>
               {isOpen && (
                 <div className="border-t border-border p-4 sm:px-6">
+                  {(m.phone || m.organization) && (
+                    <dl className="mb-4 grid gap-1 text-sm sm:grid-cols-2">
+                      {m.phone && (
+                        <div>
+                          <dt className="inline text-muted-foreground">Phone: </dt>
+                          <dd className="inline" dir="ltr">
+                            <a href={`tel:${m.phone.replace(/[^+\d]/g, "")}`} className="text-primary hover:underline">{m.phone}</a>
+                          </dd>
+                        </div>
+                      )}
+                      {m.organization && (
+                        <div>
+                          <dt className="inline text-muted-foreground">Organisation: </dt>
+                          <dd className="inline" dir="auto">{m.organization}</dd>
+                        </div>
+                      )}
+                    </dl>
+                  )}
                   <p dir="auto" className="whitespace-pre-wrap text-[15px] leading-relaxed">
                     {m.message}
                   </p>

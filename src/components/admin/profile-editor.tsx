@@ -6,7 +6,7 @@ import type { MetricId, SiteData } from "@/types";
 import { SaveBar, useEditorState } from "./save-bar";
 import { UploadField } from "./upload-field";
 
-type ProfileData = Pick<SiteData, "links" | "verifiedDomain" | "metrics">;
+type ProfileData = Pick<SiteData, "links" | "verifiedDomain" | "metrics" | "metricsSince">;
 
 const metricLabels: Record<MetricId, string> = {
   citations: "Total citations",
@@ -33,6 +33,10 @@ export function ProfileEditor({ initial }: { initial: ProfileData }) {
           <div>
             <Label htmlFor="photo">Profile photo</Label>
             <UploadField id="photo" value={value.links.photo} onChange={(v) => setLink("photo", v)} accept="image" />
+          </div>
+          <div>
+            <Label htmlFor="banner">Banner image (the “heritage” band on the home page)</Label>
+            <UploadField id="banner" value={value.links.banner || null} onChange={(v) => setLink("banner", v)} accept="image" clearable />
           </div>
           <div>
             <Label htmlFor="cv">CV (PDF)</Label>
@@ -67,6 +71,40 @@ export function ProfileEditor({ initial }: { initial: ProfileData }) {
             </div>
           ))}
         </div>
+        <h3 className="mt-6 text-sm font-semibold">Recent years (Google Scholar “since” column)</h3>
+        <div className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-5">
+          {(
+            [
+              ["year", "Since year"],
+              ["citations", "Citations"],
+              ["h", "h-index"],
+              ["i10", "i10-index"],
+            ] as const
+          ).map(([key, label]) => (
+            <div key={key}>
+              <Label htmlFor={`since-${key}`}>{label}</Label>
+              <Input
+                id={`since-${key}`}
+                type="number"
+                min={0}
+                value={String(value.metricsSince[key])}
+                onChange={(e) => {
+                  const n = Number.parseInt(e.target.value, 10);
+                  setValue((p) => ({ ...p, metricsSince: { ...p.metricsSince, [key]: Number.isNaN(n) ? 0 : n } }));
+                }}
+              />
+            </div>
+          ))}
+          <div>
+            <Label htmlFor="since-updated">Copied on</Label>
+            <Input
+              id="since-updated"
+              type="date"
+              value={value.metricsSince.updated}
+              onChange={(e) => setValue((p) => ({ ...p, metricsSince: { ...p.metricsSince, updated: e.target.value } }))}
+            />
+          </div>
+        </div>
       </section>
 
       <section className="glass rounded-3xl p-5 sm:p-7">
@@ -80,6 +118,9 @@ export function ProfileEditor({ initial }: { initial: ProfileData }) {
               ["scholar", "Google Scholar profile"],
               ["fayoum", "Fayoum University page"],
               ["mbrf", "MBRF page"],
+              ["linkedin", "LinkedIn profile"],
+              ["facebook", "Facebook page"],
+              ["email", "Public email address"],
             ] as const
           ).map(([key, label]) => (
             <div key={key}>

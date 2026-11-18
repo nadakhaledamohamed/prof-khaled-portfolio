@@ -9,7 +9,7 @@ export const metadata: Metadata = { title: "Profile & stats" };
 export default async function ProfilePage() {
   const { content, error } = await loadForEditing("Profile & stats");
   if (!content) return error;
-  const { links, verifiedDomain, metrics } = content.data;
+  const { links, verifiedDomain, metrics, metricsSince } = content.data;
 
   return (
     <>
@@ -22,7 +22,7 @@ export default async function ProfilePage() {
           </>
         }
       />
-      <ProfileEditor initial={{ links, verifiedDomain, metrics }} />
+      <ProfileEditor initial={{ links, verifiedDomain, metrics, metricsSince }} />
     </>
   );
 }

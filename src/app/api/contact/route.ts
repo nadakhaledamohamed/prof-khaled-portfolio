@@ -52,7 +52,18 @@ export async function POST(request: Request) {
 
   let stored = false;
   try {
-    await saveMessage({ name, email, subject, message, locale });
+    const { kind, phone, organization, consultType } = result.data;
+    await saveMessage({
+      kind: kind ?? "contact",
+      name,
+      email,
+      subject,
+      message,
+      locale,
+      phone,
+      organization,
+      consultType,
+    });
     stored = true;
   } catch (error) {
     console.error("[contact] could not store message:", error instanceof Error ? error.message : error);

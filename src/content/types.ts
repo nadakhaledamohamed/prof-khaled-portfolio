@@ -5,9 +5,12 @@ import type {
   FocusArea,
   MetricId,
   NavId,
+  PageId,
   PublicationCategory,
   SiteData,
   SocialIcon,
+  SystemCategory,
+  SystemReview,
   Testimonial,
   TimelineEntry,
 } from "@/types";
@@ -181,4 +184,117 @@ export interface Dictionary {
   };
   footer: { explore: string; elsewhere: string; rights: string; dataSource: string };
   notFound: { title: string; text: string; back: string };
+  /** Heading of each stand-alone page. */
+  pages: Record<PageId, SectionCopy>;
+  /** Navigation menus. */
+  menu: {
+    home: string;
+    about: string;
+    work: string;
+    media: string;
+    resources: string;
+    consult: string;
+    items: Record<PageId, string>;
+    /** Short description under each menu item. */
+    hints: Record<PageId, string>;
+  };
+  /** Shared UI labels on the content pages. */
+  ui: {
+    search: string;
+    searchPlaceholder: string;
+    all: string;
+    noResults: string;
+    clear: string;
+    viewAll: string;
+    readMore: string;
+    back: string;
+    open: string;
+    download: string;
+    externalSource: string;
+    /** {n} */
+    results: string;
+    arabicOnly: string;
+    updated: string;
+    since: string;
+  };
+  heritage: { eyebrow: string; title: string; text: string };
+  cvPage: { download: string; sections: string };
+  booksPage: {
+    authors: string;
+    publisher: string;
+    year: string;
+    isbn: string;
+    citations: string;
+    readOnline: string;
+    openPdf: string;
+    contents: string;
+    page: string;
+    backToBooks: string;
+    readerHint: string;
+    ebookBadge: string;
+    pdfBadge: string;
+  };
+  publicationsPage: {
+    kinds: { all: string; paper: string; study: string };
+    fullText: string;
+    details: string;
+    venue: string;
+    backToList: string;
+    sinceLabel: string;
+  };
+  articlesPage: {
+    readArticle: string;
+    original: string;
+    backToArticles: string;
+    latest: string;
+    figure: string;
+  };
+  talksPage: {
+    tabs: { all: string; course: string; talk: string };
+    /** {n} */
+    lectures: string;
+    /** {n} */
+    pages: string;
+    outline: string;
+    openPdf: string;
+    close: string;
+  };
+  videosPage: { watch: string; external: string; close: string };
+  systemsPage: {
+    cats: Record<SystemCategory, string>;
+    licenses: Record<SystemReview["license"], string>;
+    indicators: { func: string; use: string; perf: string; cost: string; support: string };
+    visit: string;
+    report: string;
+    reportOpen: string;
+    category: string;
+    license: string;
+    highlight: string;
+    indicatorsLabel: string;
+    categoriesLabel: string;
+  };
+  libraryPage: { visit: string; groups: string };
+  consultPage: {
+    types: { research: string; knowledge: string; technical: string; technology: string; other: string };
+    type: string;
+    phone: string;
+    phonePlaceholder: string;
+    organization: string;
+    organizationPlaceholder: string;
+    details: string;
+    detailsPlaceholder: string;
+    submit: string;
+    successTitle: string;
+    successText: string;
+    optional: string;
+  };
+  homeTeasers: {
+    articlesTitle: string;
+    talksTitle: string;
+    videosTitle: string;
+    libraryTitle: string;
+    libraryText: string;
+    consultTitle: string;
+    consultText: string;
+  };
 }

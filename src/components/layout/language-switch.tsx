@@ -1,25 +1,29 @@
 "use client";
 
-import { LOCALE_COOKIE, localePath, type Locale } from "@/i18n/config";
+import { usePathname } from "next/navigation";
+import { href, LOCALE_COOKIE, stripLocale, type Locale } from "@/i18n/config";
 import { cn } from "@/lib/utils";
 
 interface LanguageSwitchProps {
   locale: Locale;
-  /** Section to land on in the other language (keeps the reader's place). */
+  /** Home-page section to land on in the other language (keeps the reader's place). */
   activeSection?: string;
   label: string;
   short: string;
   className?: string;
 }
 
-/** Links to the same section in the other language and remembers the choice. */
+/** Links to the same page (and section) in the other language and remembers the choice. */
 export function LanguageSwitch({ locale, activeSection, label, short, className }: LanguageSwitchProps) {
+  const pathname = usePathname();
   const target: Locale = locale === "en" ? "ar" : "en";
-  const hash = activeSection && activeSection !== "top" ? `#${activeSection}` : "";
+  const page = stripLocale(pathname ?? "/");
+  const hash = page === "/" && activeSection && activeSection !== "top" ? `#${activeSection}` : "";
+  const to = href(target, page) + hash;
 
   return (
     <a
-      href={localePath(target, hash)}
+      href={to}
       hrefLang={target}
       lang={target}
       aria-label={label}

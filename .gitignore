@@ -43,3 +43,8 @@ next-env.d.ts
 
 # admin uploads (live data, not source)
 /storage/
+.vercel
+.env*
+
+# imported visitor requests (personal data) — loaded into the database with scripts/import-requests.mjs
+/scripts/legacy-consult-requests.json

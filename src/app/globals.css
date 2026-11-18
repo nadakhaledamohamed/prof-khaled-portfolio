@@ -31,13 +31,13 @@
   /* Font stacks. Arabic faces are listed after the Latin ones so Arabic glyphs
      (e.g. book titles on the English page) still render in a matching typeface. */
   --font-body: var(--font-inter), var(--font-plex-ar);
-  --font-heading: var(--font-fraunces), var(--font-kufi);
+  --font-heading: var(--font-fraunces), var(--font-amiri);
   --font-code: var(--font-geist-mono), var(--font-plex-ar);
 }
 
 html[lang="ar"] {
   --font-body: var(--font-plex-ar), var(--font-inter);
-  --font-heading: var(--font-kufi), var(--font-fraunces);
+  --font-heading: var(--font-amiri), var(--font-fraunces);
   --font-code: var(--font-plex-ar), var(--font-geist-mono);
 }
 
@@ -207,6 +207,88 @@ html[lang="ar"] {
 [dir="rtl"] .italic[lang="en"],
 [dir="rtl"] [lang="en"].italic {
   font-style: italic;
+}
+
+/* ---------- E-book reader (HTML from the imported book) ---------- */
+.ebook {
+  font-family: var(--font-plex-ar), var(--font-inter), sans-serif;
+  font-size: 1.0625rem;
+  line-height: 2.1;
+  color: color-mix(in srgb, var(--foreground) 88%, transparent);
+}
+.ebook p {
+  margin-block: 0.9em;
+  text-wrap: pretty;
+}
+.ebook h4,
+.ebook h5 {
+  margin-block: 1.6em 0.6em;
+  font-family: var(--font-amiri), var(--font-plex-ar), serif;
+  font-weight: 700;
+  color: var(--foreground);
+}
+.ebook h4 {
+  font-size: 1.45rem;
+}
+.ebook h5 {
+  font-size: 1.15rem;
+}
+.ebook .sub {
+  margin-top: 1.6em;
+  font-weight: 600;
+  color: var(--primary);
+}
+.ebook .b {
+  padding-inline-start: 1rem;
+}
+.ebook figure {
+  margin: 2rem 0;
+  padding: 0.75rem;
+  border-radius: 1rem;
+  border: 1px solid var(--border);
+  background: #fff;
+  text-align: center;
+}
+.ebook img {
+  display: inline-block;
+  max-width: 100%;
+  height: auto;
+}
+.ebook .cap {
+  margin-top: -1rem;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--muted-foreground);
+}
+.ebook .fns {
+  margin-top: 2.5rem;
+  padding: 1.25rem 1.5rem;
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--foreground) 4%, transparent);
+  font-size: 0.9rem;
+  line-height: 1.9;
+}
+.ebook .fns h5 {
+  margin-top: 0;
+  font-size: 1rem;
+}
+.ebook .meta-pg {
+  text-align: center;
+}
+.ebook .meta-pg .t1 {
+  font-family: var(--font-amiri), serif;
+  font-size: 2rem;
+  line-height: 1.5;
+  color: var(--foreground);
+}
+.ebook .meta-pg .en {
+  font-family: var(--font-fraunces), serif;
+  font-size: 1.25rem;
+  line-height: 1.5;
+}
+.ebook hr {
+  margin-block: 2rem;
+  border-color: var(--border);
 }
 
 @media (prefers-reduced-motion: reduce) {

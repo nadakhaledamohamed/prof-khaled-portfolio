@@ -3,8 +3,7 @@ import { siteUrl } from "@/data/site";
 
 export default function robots(): MetadataRoute.Robots {
   return {
-    // The share image lives under /api but must stay reachable for link previews.
-    rules: [{ userAgent: "*", allow: ["/", "/api/og"], disallow: "/api/" }],
+    rules: [{ userAgent: "*", allow: "/", disallow: ["/api/", "/admin"] }],
     sitemap: `${siteUrl}/sitemap.xml`,
   };
 }

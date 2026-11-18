@@ -11,6 +11,10 @@ export default async function MessagesPage() {
   try {
     messages = (await listMessages()).map((m) => ({
       id: m.Id,
+      kind: m.Kind === "consult" ? "consult" : "contact",
+      phone: m.Phone,
+      organization: m.Organization,
+      consultType: m.ConsultType,
       name: m.Name,
       email: m.Email,
       subject: m.Subject,

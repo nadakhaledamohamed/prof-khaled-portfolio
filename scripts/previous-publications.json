@@ -1,0 +1,34 @@
+[
+  { "title": "The impact of metadata in web resources discovering", "year": 2006, "citations": 32 },
+  { "title": "Web usage mining analysis of federated search tools for Egyptian scholars", "year": 2008, "citations": 20 },
+  { "title": "Evaluating federated search tools: usability and retrievability framework", "year": 2015, "citations": 15 },
+  { "title": "Quantifying the ICT needs of academic institutes using the service category–stakeholder matrix approach", "year": 2008, "citations": 9 },
+  { "title": "The role of digital libraries in Egyptian higher education", "year": 2009, "citations": 8 },
+  { "title": "Software evaluation methodology: two case studies from Egyptian universities", "year": 2012, "citations": 5 },
+  { "title": "The union catalog of Egyptian university libraries: a case study", "year": 2011, "citations": 3 },
+  { "title": "Measuring the return on investment in consortial subscriptions to electronic journals", "year": 2010, "citations": 3 },
+  { "title": "Concept building and the problem of term semantics in user interaction with information retrieval systems", "year": 2010, "citations": 2 },
+  { "title": "The credibility of search engines in indexing and ranking duplicate pages", "year": 2007, "citations": 2 },
+  {
+    "id": "prev-consortium-2013",
+    "add": true,
+    "title": "The role of the Egyptian University Libraries Consortium in developing a knowledge society",
+    "titleAr": "",
+    "authors": "K. A. F. Mohamed",
+    "venue": "Faculty of Arts Conference Proceedings (Arabic)",
+    "year": 2013,
+    "citations": 4,
+    "category": "libraries"
+  },
+  {
+    "id": "prev-otitis-2020",
+    "add": true,
+    "title": "Otitis externa in a tertiary care hospital in Zagazig, Egypt: isolated pathogens and antibiotic sensitivity",
+    "titleAr": "",
+    "authors": "A. A. E. Allam, A. E. E. Tantawy, K. A. E. Mohamed, E. A. Morad, M. A. E. El Shafei",
+    "venue": "African Journal of Clinical & Experimental Microbiology · 21(1): 60",
+    "year": 2020,
+    "citations": 7,
+    "category": "other"
+  }
+]

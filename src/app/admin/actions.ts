@@ -112,14 +112,11 @@ export async function saveDataSection(key: string, value: unknown): Promise<Acti
   try {
     await updateContent((content) => {
       if (key === "profile") {
-        const profile = parsed.data as {
-          links: SiteContent["data"]["links"];
-          verifiedDomain: string;
-          metrics: SiteContent["data"]["metrics"];
-        };
+        const profile = parsed.data as Pick<SiteContent["data"], "links" | "verifiedDomain" | "metrics" | "metricsSince">;
         content.data.links = profile.links;
         content.data.verifiedDomain = profile.verifiedDomain;
         content.data.metrics = profile.metrics;
+        content.data.metricsSince = profile.metricsSince;
       } else {
         (content.data as unknown as Record<string, unknown>)[key] = parsed.data;
       }

@@ -155,7 +155,7 @@ export function Network({
     <Section id="network">
       <SectionHeading
         id="network"
-        index="09"
+        index="11"
         eyebrow={t.eyebrow}
         title={t.title}
         description={t.description}

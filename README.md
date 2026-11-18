@@ -59,6 +59,33 @@ npm run admin:password -- <username>
 - **Defaults**: `src/content/en.ts`, `src/content/ar.ts` and `src/data/site.ts` seed the database
   on first run, and are served if the database is unreachable.
 
+### Content imported from the previous site
+
+`npm run import:legacy -- <extracted khaled-website-local folder>` converts the previous site's
+export (`data/db.json` and `data/assets/`) into `src/data/legacy.json` and copies every file into
+`public/content/`, the Arabic fonts into `src/fonts/` and the share image into `public/`.
+It is safe to re-run. The visitor consultation requests in that export are personal data: they are
+written to `scripts/legacy-consult-requests.json` (git-ignored) and loaded into the admin inbox
+with `npm run import:requests`.
+
+## Pages
+
+| Path | Content |
+| --- | --- |
+| `/` | Home: profile, impact, career, research areas, books, publications, articles, talks, videos, library, awards, gallery, contact |
+| `/cv` | Full CV with a section index |
+| `/publications`, `/publications/[id]` | Research & studies with filters and search |
+| `/books`, `/books/[id]`, `/books/[id]/read` | Books, full-PDF reader with contents, full-text e-book reader |
+| `/articles`, `/articles/[id]` | Articles with full text and figures |
+| `/talks` | Courses and talks with their slide decks |
+| `/videos` | Videos (YouTube plays on the page) |
+| `/systems` | Comparative review of library systems and the evaluation report |
+| `/open-library` | Open repositories by group |
+| `/gallery` | Photo gallery with a lightbox |
+| `/consult` | Consultation request form |
+
+Every page exists in Arabic under `/ar/…`.
+
 ## Languages and routing
 
 - `/` serves English and `/ar` serves Arabic (right-to-left, Arabic typefaces).

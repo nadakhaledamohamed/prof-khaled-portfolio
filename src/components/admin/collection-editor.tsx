@@ -14,7 +14,7 @@ import { UploadField } from "./upload-field";
 export interface FieldDef<T> {
   key: keyof T & string;
   label: string;
-  kind: "text" | "textarea" | "number" | "select" | "upload";
+  kind: "text" | "textarea" | "longtext" | "number" | "select" | "upload" | "checkbox" | "multiselect" | "lectures";
   options?: { value: string; label: string }[];
   accept?: "image" | "pdf" | "any";
   /** Empty input is stored as null. */
@@ -26,7 +26,17 @@ export interface FieldDef<T> {
 }
 
 interface CollectionEditorProps<T extends { id: string }> {
-  section: "books" | "publications" | "collaborators" | "gallery";
+  section:
+    | "books"
+    | "publications"
+    | "collaborators"
+    | "gallery"
+    | "articles"
+    | "talks"
+    | "videos"
+    | "systems"
+    | "openLibrary"
+    | "cv";
   initial: T[];
   fields: FieldDef<T>[];
   create: () => T;
@@ -234,7 +244,7 @@ function FieldInput<T>({
   value: unknown;
   onChange: (value: unknown) => void;
 }) {
-  const wide = field.wide || field.kind === "textarea" || field.kind === "upload";
+  const wide = field.wide || ["textarea", "longtext", "upload", "multiselect", "lectures"].includes(field.kind);
   const common = {
     id,
     dir: field.dir,
@@ -244,6 +254,46 @@ function FieldInput<T>({
 
   let control: React.ReactNode;
   switch (field.kind) {
+    case "longtext":
+      control = (
+        <Textarea {...common} className="min-h-72 font-mono text-[13px] leading-relaxed" value={(value as string) ?? ""} onChange={(e) => onChange(e.target.value)} />
+      );
+      break;
+    case "checkbox":
+      return (
+        <label className={cn("flex items-center gap-2.5 self-end pb-3 text-sm font-medium", wide && "sm:col-span-2")}>
+          <input id={id} type="checkbox" checked={Boolean(value)} onChange={(e) => onChange(e.target.checked)} className="size-4 accent-[var(--primary)]" />
+          {field.label}
+        </label>
+      );
+    case "multiselect": {
+      const selected = Array.isArray(value) ? (value as string[]) : [];
+      control = (
+        <div className="flex flex-wrap gap-2" role="group" aria-label={field.label}>
+          {field.options?.map((option) => {
+            const on = selected.includes(option.value);
+            return (
+              <button
+                key={option.value}
+                type="button"
+                aria-pressed={on}
+                onClick={() => onChange(on ? selected.filter((v) => v !== option.value) : [...selected, option.value])}
+                className={cn(
+                  "rounded-full border px-3.5 py-1.5 text-sm transition-colors",
+                  on ? "border-transparent bg-foreground text-background" : "border-border text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+      );
+      break;
+    }
+    case "lectures":
+      control = <LecturesInput id={id} value={(value as Lecture[]) ?? []} onChange={onChange} />;
+      break;
     case "textarea":
       control = (
         <Textarea {...common} className="min-h-24" value={(value as string) ?? ""} onChange={(e) => onChange(e.target.value)} />
@@ -307,6 +357,67 @@ function FieldInput<T>({
       <Label htmlFor={id}>{field.label}</Label>
       {control}
       {field.help && <p className="mt-1.5 text-xs text-muted-foreground">{field.help}</p>}
+    </div>
+  );
+}
+
+interface Lecture {
+  titleEn: string;
+  titleAr: string;
+  file: string | null;
+  pages: number;
+}
+
+/** Nested list of lectures / slide decks for a course or talk. */
+function LecturesInput({ id, value, onChange }: { id: string; value: Lecture[]; onChange: (value: unknown) => void }) {
+  const set = (index: number, patch: Partial<Lecture>) => onChange(value.map((l, i) => (i === index ? { ...l, ...patch } : l)));
+  const move = (index: number, delta: number) => {
+    const next = [...value];
+    const target = index + delta;
+    if (target < 0 || target >= next.length) return;
+    [next[index], next[target]] = [next[target], next[index]];
+    onChange(next);
+  };
+  return (
+    <div id={id} className="grid gap-3">
+      {value.map((lecture, i) => (
+        <div key={i} className="grid gap-3 rounded-2xl border border-border p-3 sm:grid-cols-2">
+          <div className="flex items-center justify-between sm:col-span-2">
+            <span className="font-mono text-xs text-muted-foreground">#{i + 1}</span>
+            <div className="flex gap-1">
+              <IconButton label="Move up" onClick={() => move(i, -1)} disabled={i === 0}>
+                <ArrowUp className="size-4" />
+              </IconButton>
+              <IconButton label="Move down" onClick={() => move(i, 1)} disabled={i === value.length - 1}>
+                <ArrowDown className="size-4" />
+              </IconButton>
+              <IconButton label="Remove" danger onClick={() => onChange(value.filter((_, j) => j !== i))}>
+                <Trash2 className="size-4" />
+              </IconButton>
+            </div>
+          </div>
+          <Input aria-label="Title (English)" placeholder="Title (English)" value={lecture.titleEn} onChange={(e) => set(i, { titleEn: e.target.value })} />
+          <Input aria-label="Title (Arabic)" placeholder="العنوان بالعربية" dir="rtl" lang="ar" value={lecture.titleAr} onChange={(e) => set(i, { titleAr: e.target.value })} />
+          <div className="sm:col-span-2">
+            <UploadField id={`${id}-file-${i}`} value={lecture.file} onChange={(file) => set(i, { file })} accept="pdf" clearable />
+          </div>
+          <Input
+            aria-label="Pages"
+            type="number"
+            min={0}
+            placeholder="Pages"
+            value={String(lecture.pages || "")}
+            onChange={(e) => set(i, { pages: Number.parseInt(e.target.value, 10) || 0 })}
+          />
+        </div>
+      ))}
+      <button
+        type="button"
+        onClick={() => onChange([...value, { titleEn: "", titleAr: "", file: null, pages: 0 }])}
+        className="inline-flex w-fit items-center gap-1.5 rounded-xl border border-dashed border-border px-3 py-2 text-sm font-medium text-muted-foreground hover:border-primary/50 hover:text-primary"
+      >
+        <Plus className="size-4" /> Add lecture / slides
+      </button>
     </div>
   );
 }

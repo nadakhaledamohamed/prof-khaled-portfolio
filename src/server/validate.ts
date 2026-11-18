@@ -98,14 +98,22 @@ const text = (max: number) => z.string().trim().max(max);
 const requiredText = (max: number, label: string) =>
   z.string().trim().min(1, `${label} is required`).max(max, `${label} is too long`);
 
+const year = z.number().int().min(1900).max(2100);
+const longText = (max: number) => z.string().max(max);
+const optionalAsset = z.preprocess((v) => (v === "" ? null : v), link.nullable());
+
 export const dataSchemas = {
   profile: z.object({
     links: z.object({
       photo: requiredLink,
+      banner: link,
       cv: requiredLink,
       scholar: link,
       fayoum: link,
       mbrf: link,
+      linkedin: link,
+      facebook: link,
+      email: z.string().trim().max(150).refine((v) => v === "" || /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v), { message: "Enter a valid email address" }),
     }),
     verifiedDomain: text(120),
     metrics: z
@@ -117,6 +125,13 @@ export const dataSchemas = {
         }),
       )
       .length(4),
+    metricsSince: z.object({
+      year,
+      citations: z.number().int().min(0).max(1_000_000),
+      h: z.number().int().min(0).max(10_000),
+      i10: z.number().int().min(0).max(10_000),
+      updated: text(20),
+    }),
   }),
   books: z
     .array(
@@ -124,12 +139,21 @@ export const dataSchemas = {
         id,
         title: requiredText(300, "Title"),
         titleAr: z.preprocess((v) => (v === "" ? null : v), text(300).nullable()),
+        authorsEn: text(500),
+        authorsAr: text(500),
         publisher: text(300),
         publisherAr: text(300),
-        year: z.number().int().min(1900).max(2100).nullable(),
+        year: year.nullable(),
         language: z.enum(["ar", "en"]),
         cover: requiredLink,
-        pdf: optionalLink,
+        isbn: text(40),
+        summaryEn: longText(3000),
+        summaryAr: longText(3000),
+        citations: z.number().int().min(0).max(1_000_000).nullable(),
+        pdf: optionalAsset,
+        ebook: optionalAsset,
+        toc: longText(30_000),
+        tocOffset: z.number().int().min(-500).max(500),
         url: optionalLink,
       }),
     )
@@ -138,15 +162,140 @@ export const dataSchemas = {
     .array(
       z.object({
         id,
+        kind: z.enum(["paper", "study"]),
         title: requiredText(500, "Title"),
-        authors: requiredText(500, "Authors"),
+        titleAr: text(500),
+        authors: text(500),
+        authorsAr: text(500),
         venue: text(500),
-        year: z.number().int().min(1900).max(2100),
+        venueAr: text(500),
+        year: z.number().int().min(0).max(2100),
         citations: z.number().int().min(0).max(1_000_000),
         category: z.enum(["retrieval", "libraries", "other"]),
+        link: optionalLink,
+        ident: text(80),
+        abstractAr: longText(100_000),
       }),
     )
     .max(1000),
+  articles: z
+    .array(
+      z.object({
+        id,
+        titleEn: text(300),
+        titleAr: requiredText(300, "Arabic title"),
+        summaryEn: longText(3000),
+        summaryAr: longText(3000),
+        bodyAr: longText(200_000),
+        date: text(20),
+        image: optionalAsset,
+        link: optionalLink,
+        venueEn: text(300),
+        venueAr: text(300),
+      }),
+    )
+    .max(500),
+  talks: z
+    .array(
+      z.object({
+        id,
+        track: z.enum(["course", "talk"]),
+        titleEn: text(300),
+        titleAr: requiredText(300, "Arabic title"),
+        summaryEn: longText(3000),
+        summaryAr: longText(3000),
+        eventEn: text(300),
+        eventAr: text(300),
+        placeEn: text(300),
+        placeAr: text(300),
+        outlineAr: longText(10_000),
+        image: optionalAsset,
+        lectures: z
+          .array(
+            z.object({
+              titleEn: text(300),
+              titleAr: text(300),
+              file: optionalAsset,
+              pages: z.number().int().min(0).max(5000),
+            }),
+          )
+          .max(100),
+      }),
+    )
+    .max(300),
+  videos: z
+    .array(
+      z.object({
+        id,
+        titleEn: text(300),
+        titleAr: requiredText(300, "Arabic title"),
+        summaryEn: longText(2000),
+        summaryAr: longText(2000),
+        eventEn: text(300),
+        eventAr: text(300),
+        link: requiredLink,
+        image: optionalAsset,
+        date: text(20),
+      }),
+    )
+    .max(300),
+  systems: z
+    .array(
+      z.object({
+        id,
+        num: z.number().int().min(0).max(1000),
+        nameEn: requiredText(200, "Name"),
+        nameAr: text(200),
+        fullNameEn: text(300),
+        fullNameAr: text(300),
+        cats: z.array(z.enum(["ils", "repo", "access"])).max(3),
+        license: z.enum(["open", "commercial", "platform", "other"]),
+        link,
+        date: text(20),
+        funcEn: longText(2000), funcAr: longText(2000),
+        useEn: longText(2000), useAr: longText(2000),
+        perfEn: longText(2000), perfAr: longText(2000),
+        costEn: longText(2000), costAr: longText(2000),
+        supportEn: longText(2000), supportAr: longText(2000),
+        noteEn: longText(2000), noteAr: longText(2000),
+        strengthsEn: longText(2000), strengthsAr: longText(2000),
+        highlight: z.boolean(),
+      }),
+    )
+    .max(200),
+  systemsReport: z.object({
+    titleEn: text(300),
+    titleAr: text(300),
+    summaryEn: longText(3000),
+    summaryAr: longText(3000),
+    bodyAr: longText(200_000),
+    date: text(20),
+  }),
+  openLibrary: z
+    .array(
+      z.object({
+        id,
+        num: z.number().int().min(0).max(1000),
+        groupEn: requiredText(200, "Group"),
+        groupAr: text(200),
+        title: requiredText(300, "Name"),
+        summaryEn: longText(2000),
+        summaryAr: longText(2000),
+        link: requiredLink,
+      }),
+    )
+    .max(300),
+  cv: z
+    .array(
+      z.object({
+        id,
+        titleEn: requiredText(200, "English title"),
+        titleAr: requiredText(200, "Arabic title"),
+        bodyEn: longText(30_000),
+        bodyAr: longText(30_000),
+      }),
+    )
+    .max(50),
   collaborators: z
     .array(
       z.object({

@@ -62,6 +62,8 @@ export async function readSiteContent(): Promise<{
   };
 }
 
+const loggedFailures = new Set<string>();
+
 const cachedContent = unstable_cache(
   async (): Promise<SiteContent> => (await readSiteContent()).content,
   ["site-content-v1"],
@@ -77,10 +79,17 @@ export async function getSiteContent(): Promise<SiteContent> {
   try {
     return await cachedContent();
   } catch (error) {
-    console.error(
-      "[content] database unavailable, serving bundled content:",
-      error instanceof Error ? error.message : error,
-    );
+    const message = error instanceof Error ? error.message : String(error);
+    // Log each distinct failure once per process, not once per page.
+    if (!loggedFailures.has(message)) {
+      loggedFailures.add(message);
+      if (!process.env.DATABASE_URL && !process.env.POSTGRES_URL) {
+        // Expected before a database is connected: the bundled content is the site's content.
+        console.info("[content] No database configured (DATABASE_URL); serving the bundled content.");
+      } else {
+        console.warn("[content] Database unavailable, serving the bundled content:", message);
+      }
+    }
     return defaultContent;
   }
 }

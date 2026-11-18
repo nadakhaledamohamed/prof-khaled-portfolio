@@ -11,7 +11,7 @@ export function Awards({ t }: { t: Dictionary["awards"] }) {
 
   return (
     <Section id="awards">
-      <SectionHeading id="awards" index="07" eyebrow={t.eyebrow} title={t.title} />
+      <SectionHeading id="awards" index="09" eyebrow={t.eyebrow} title={t.title} />
 
       <div className="grid gap-5 lg:grid-cols-[1fr_1.15fr]">
         {featured && (
