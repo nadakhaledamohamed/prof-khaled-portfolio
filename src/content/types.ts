@@ -262,6 +262,31 @@ export interface Dictionary {
     details: string;
   };
   views: { label: string; list: string; cards: string };
+  /** Search, filter and sort controls for books and publications. */
+  discover: {
+    /** "{shown}", "{total}" and "{noun}" are replaced. */
+    showing: string;
+    nouns: { books: string; publications: string };
+    reset: string;
+    emptyBooks: string;
+    emptyPublications: string;
+    emptyHint: string;
+    filtersLabel: string;
+    type: string;
+    topic: string;
+    year: string;
+    language: string;
+    sort: string;
+    allTypes: string;
+    allTopics: string;
+    allYears: string;
+    allLanguages: string;
+    sorts: { newest: string; oldest: string; alpha: string; cited: string };
+    types: { paper: string; article: string; conference: string; study: string; report: string };
+    bookSearchLabel: string;
+    bookSearchPlaceholder: string;
+    pubSearchPlaceholder: string;
+  };
   cvPage: { download: string; sections: string };
   booksPage: {
     authors: string;

@@ -36,8 +36,10 @@ export default async function PublicationsPage({ params }: { params: LocaleParam
         ui={t.ui}
         locale={locale}
         publications={data.publications}
+        articles={data.articles}
         scholarUrl={data.links.scholar}
         views={t.views}
+        discover={t.discover}
       />
     </>
   );

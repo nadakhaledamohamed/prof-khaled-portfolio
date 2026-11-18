@@ -3,29 +3,44 @@
 import * as React from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowRight, ArrowUpRight, ChevronDown, FileText, Info, LayoutGrid, List, SearchX } from "lucide-react";
+import { ArrowRight, ArrowUpRight, FileText, Info, LayoutGrid, List } from "lucide-react";
 import { Section, SectionHeading } from "@/components/layout/section";
 import { Reveal } from "@/components/motion/reveal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { FilterChips, matches, SearchBox } from "@/components/ui/filters";
+import { EmptyResults, ResultsBar, SelectFilter } from "@/components/ui/explorer";
+import { FilterChips, SearchBox } from "@/components/ui/filters";
 import type { Dictionary } from "@/content/types";
 import { categories } from "@/data/site";
-import { fmt, href, type Locale } from "@/i18n/config";
+import { href, type Locale } from "@/i18n/config";
+import { hit, publicationType, searchIndex, topicFromText, type PubType } from "@/lib/discover";
 import { arrowNudge, cn, easeOutExpo, flipRtl } from "@/lib/utils";
-import type { Publication, PublicationCategory } from "@/types";
+import type { Article, Publication, PublicationCategory } from "@/types";
 
-type Filter = "all" | PublicationCategory;
-type Kind = "all" | Publication["kind"];
-type Sort = "citations" | "newest" | "oldest";
-const sortIds: Sort[] = ["citations", "newest", "oldest"];
+type Topic = "all" | PublicationCategory;
+type TypeFilter = "all" | PubType;
+type Sort = "cited" | "newest" | "oldest" | "alpha";
+const typeIds: PubType[] = ["paper", "article", "conference", "study", "report"];
+
+/** A publication, or an article shown alongside them, ready for filtering. */
+type Item = Publication & {
+  type: PubType;
+  /** Theme (read from keywords for articles). */
+  topic: PublicationCategory | null;
+  /** Internal page for the full text, if any. */
+  detail: string | null;
+  index: string;
+};
 
 interface PublicationsProps {
   t: Dictionary["publications"];
   page: Dictionary["publicationsPage"];
   ui: Dictionary["ui"];
+  discover: Dictionary["discover"];
   locale: Locale;
   publications: Publication[];
+  /** Articles to include as their own type (the publications page). */
+  articles?: Article[];
   scholarUrl: string;
   /** Home page: show this many and a "view all" link. */
   limit?: number;
@@ -38,7 +53,7 @@ interface PublicationsProps {
 type View = "list" | "cards";
 const VIEW_KEY = "km-pub-view";
 
-export function Publications({ t, page, ui, locale, publications, scholarUrl, limit, bare, views }: PublicationsProps) {
+export function Publications({ t, page, ui, discover, locale, publications, articles, scholarUrl, limit, bare, views }: PublicationsProps) {
   const isAr = locale === "ar";
   const [view, setViewState] = React.useState<View>("list");
   React.useEffect(() => {
@@ -54,66 +69,108 @@ export function Publications({ t, page, ui, locale, publications, scholarUrl, li
     } catch {}
   };
   const cards = Boolean(views) && view === "cards";
-  const [filter, setFilter] = React.useState<Filter>("all");
-  const [kind, setKind] = React.useState<Kind>("all");
-  const [sort, setSort] = React.useState<Sort>("citations");
+  const [topic, setTopic] = React.useState<Topic>("all");
+  const [type, setType] = React.useState<TypeFilter>("all");
+  const [year, setYear] = React.useState("all");
+  const [sort, setSort] = React.useState<Sort>("cited");
   const [query, setQuery] = React.useState("");
+  const deferredQuery = React.useDeferredValue(query);
 
-  const filters = [
-    { id: "all" as Filter, label: t.all, count: publications.length },
-    ...categories.map((id) => ({ id: id as Filter, label: t.categories[id], count: publications.filter((p) => p.category === id).length })),
-  ];
-  const kinds = (["all", "paper", "study"] as Kind[]).map((id) => ({
-    id,
-    label: page.kinds[id],
-    count: id === "all" ? publications.length : publications.filter((p) => p.kind === id).length,
-  }));
+  // Everything searchable (including full text) is normalized once, not on each keystroke.
+  const all = React.useMemo<Item[]>(() => {
+    const pubs: Item[] = publications.map((p) => ({
+      ...p,
+      type: publicationType(p),
+      topic: p.category,
+      detail: p.abstractAr ? href(locale, `/publications/${p.id}`) : null,
+      index: searchIndex(p.title, p.titleAr, p.authors, p.authorsAr, p.venue, p.venueAr, p.year, p.ident, p.abstractAr),
+    }));
+    const arts: Item[] = (articles ?? []).map((a) => ({
+      id: `article-${a.id}`,
+      kind: "paper",
+      title: a.titleEn || a.titleAr,
+      titleAr: a.titleAr,
+      authors: "",
+      authorsAr: "",
+      venue: a.venueEn,
+      venueAr: a.venueAr,
+      year: Number.parseInt(a.date, 10) || 0,
+      citations: 0,
+      category: "other",
+      link: a.link,
+      ident: "",
+      abstractAr: "",
+      type: "article",
+      topic: topicFromText([a.titleEn, a.titleAr], [a.summaryEn, a.summaryAr]),
+      detail: href(locale, `/articles/${a.id}`),
+      index: searchIndex(a.titleEn, a.titleAr, a.summaryEn, a.summaryAr, a.venueEn, a.venueAr, a.date, a.bodyAr),
+    }));
+    return [...pubs, ...arts];
+  }, [publications, articles, locale]);
+
+  const titleOf = React.useCallback((p: Item) => (isAr && p.titleAr ? p.titleAr : p.title), [isAr]);
 
   const items = React.useMemo(() => {
-    return publications
-      .filter((p) => filter === "all" || p.category === filter)
-      .filter((p) => kind === "all" || p.kind === kind)
-      .filter((p) => matches(query, p.title, p.titleAr, p.authors, p.authorsAr, p.venue, p.venueAr, String(p.year)))
+    return all
+      .filter((p) => topic === "all" || p.topic === topic)
+      .filter((p) => type === "all" || p.type === type)
+      .filter((p) => year === "all" || String(p.year) === year)
+      .filter((p) => hit(p.index, deferredQuery))
       .sort((a, b) => {
-        if (sort === "citations") return b.citations - a.citations || b.year - a.year;
+        if (sort === "cited") return b.citations - a.citations || b.year - a.year;
         if (sort === "newest") return b.year - a.year || b.citations - a.citations;
-        return a.year - b.year || b.citations - a.citations;
+        if (sort === "oldest") return a.year - b.year || b.citations - a.citations;
+        return titleOf(a).localeCompare(titleOf(b), locale);
       });
-  }, [publications, filter, kind, sort, query]);
+  }, [all, topic, type, year, deferredQuery, sort, titleOf, locale]);
 
   const shown = limit ? items.slice(0, limit) : items;
+  const active = topic !== "all" || type !== "all" || year !== "all" || query.trim() !== "";
+  const reset = () => {
+    setTopic("all");
+    setType("all");
+    setYear("all");
+    setQuery("");
+  };
+
+  const typeOptions = [
+    { id: "all" as TypeFilter, label: discover.allTypes, count: all.length },
+    ...typeIds
+      .map((id) => ({ id: id as TypeFilter, label: discover.types[id], count: all.filter((p) => p.type === id).length }))
+      .filter((o) => o.count > 0),
+  ];
+  const topicOptions = [
+    { id: "all" as Topic, label: discover.allTopics },
+    ...categories.map((id) => ({ id: id as Topic, label: t.categories[id], count: all.filter((p) => p.topic === id).length })),
+  ];
+  const years = [...new Set(all.map((p) => p.year).filter(Boolean))].sort((a, b) => b - a);
+  const yearOptions = [{ id: "all", label: discover.allYears }, ...years.map((y) => ({ id: String(y), label: String(y) }))];
+  const sortOptions = (["cited", "newest", "oldest", "alpha"] as Sort[]).map((id) => ({ id, label: discover.sorts[id] }));
 
   const content = (
     <Reveal>
-      <div className="mb-6 grid min-w-0 gap-4 [&>*]:min-w-0">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <FilterChips options={filters} value={filter} onChange={setFilter} label={t.filterLabel} layoutId={`pub-filter-${bare ? "page" : "home"}`} />
-          <div className="flex gap-2">
-            <SearchBox value={query} onChange={setQuery} label={t.searchLabel} placeholder={t.searchPlaceholder} className="flex-1 lg:w-72 lg:flex-none" />
-            <label className="relative shrink-0">
-              <span className="sr-only">{t.sortLabel}</span>
-              <select
-                value={sort}
-                onChange={(e) => setSort(e.target.value as Sort)}
-                className="h-12 appearance-none rounded-full border border-border bg-background/60 pe-9 ps-4 text-sm font-medium transition-colors duration-300 hover:border-foreground/25 focus:border-primary focus:outline-none"
-              >
-                {sortIds.map((id) => (
-                  <option key={id} value={id} className="bg-surface text-foreground">
-                    {t.sorts[id]}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown aria-hidden className="pointer-events-none absolute end-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            </label>
-          </div>
+      <div role="search" aria-label={discover.filtersLabel} className="glass mb-6 grid min-w-0 gap-4 rounded-3xl p-4 sm:p-5 [&>*]:min-w-0">
+        <SearchBox value={query} onChange={setQuery} label={t.searchLabel} placeholder={discover.pubSearchPlaceholder} />
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          <SelectFilter label={discover.topic} value={topic} onChange={setTopic} options={topicOptions} />
+          <SelectFilter label={discover.year} value={year} onChange={setYear} options={yearOptions} />
+          <SelectFilter label={discover.sort} value={sort} onChange={setSort} options={sortOptions} className="col-span-2 sm:col-span-1" />
         </div>
-        {bare && <FilterChips options={kinds} value={kind} onChange={setKind} label={page.kinds.all} layoutId="pub-kind" />}
+        {typeOptions.length > 2 && (
+          <FilterChips options={typeOptions} value={type} onChange={setType} label={discover.type} layoutId={`pub-type-${bare ? "page" : "home"}`} />
+        )}
       </div>
 
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
-        <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground" aria-live="polite">
-          {fmt(items.length === 1 ? t.countOne : t.countMany, { n: items.length })}
-        </p>
+      <div className="mb-4 grid gap-3">
+        <ResultsBar
+          template={discover.showing}
+          shown={limit ? shown.length : items.length}
+          total={all.length}
+          noun={discover.nouns.publications}
+          active={active}
+          onReset={reset}
+          resetLabel={discover.reset}
+        >
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
           {t.note && (
             <p className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -154,6 +211,7 @@ export function Publications({ t, page, ui, locale, publications, scholarUrl, li
             </div>
           )}
         </div>
+        </ResultsBar>
       </div>
 
       <ul className={cn(cards ? "grid gap-4 sm:grid-cols-2 xl:grid-cols-3" : "glass overflow-hidden rounded-3xl")}>
@@ -163,7 +221,14 @@ export function Publications({ t, page, ui, locale, publications, scholarUrl, li
             const titleLang = isAr && p.titleAr ? "ar" : p.title && /[a-z]/i.test(p.title) ? "en" : "ar";
             const authors = isAr && p.authorsAr ? p.authorsAr : p.authors;
             const venue = isAr && p.venueAr ? p.venueAr : p.venue;
-            const detail = p.abstractAr ? href(locale, `/publications/${p.id}`) : null;
+            const detail = p.detail;
+            const isArticle = p.type === "article";
+            const badges = (
+              <>
+                {p.topic && <Badge variant="primary">{t.categories[p.topic]}</Badge>}
+                {p.type !== "paper" && <Badge>{discover.types[p.type]}</Badge>}
+              </>
+            );
             const links = (detail || p.link) && (
               <div className="mt-3 flex flex-wrap gap-2">
                 {detail && (
@@ -193,10 +258,12 @@ export function Publications({ t, page, ui, locale, publications, scholarUrl, li
                   <article className="flex w-full flex-col p-6">
                     <div className="mb-4 flex items-start justify-between gap-3">
                       <p className="font-display text-3xl text-muted-foreground transition-colors duration-300 group-hover:text-primary">{p.year || "—"}</p>
-                      <p className="flex items-baseline gap-1.5 text-end">
-                        <span className="font-display text-2xl tabular-nums">{p.citations}</span>
-                        <span className="text-xs text-muted-foreground">{p.citations === 1 ? t.citationOne : t.citationMany}</span>
-                      </p>
+                      {!isArticle && (
+                        <p className="flex items-baseline gap-1.5 text-end">
+                          <span className="font-display text-2xl tabular-nums">{p.citations}</span>
+                          <span className="text-xs text-muted-foreground">{p.citations === 1 ? t.citationOne : t.citationMany}</span>
+                        </p>
+                      )}
                     </div>
                     <h3 lang={titleLang} className="line-clamp-4 text-base font-semibold leading-snug text-pretty">
                       {detail ? (
@@ -218,10 +285,7 @@ export function Publications({ t, page, ui, locale, publications, scholarUrl, li
                       </p>
                     )}
                     <div className="mt-auto pt-4">
-                      <div className="flex flex-wrap gap-2">
-                        <Badge variant="primary">{t.categories[p.category]}</Badge>
-                        {p.kind === "study" && <Badge>{page.kinds.study}</Badge>}
-                      </div>
+                      <div className="flex flex-wrap gap-2">{badges}</div>
                       {links}
                     </div>
                   </article>
@@ -266,12 +330,13 @@ export function Publications({ t, page, ui, locale, publications, scholarUrl, li
                     {links}
                   </div>
                   <div className="flex items-center justify-end gap-3 sm:flex-col sm:items-end sm:justify-start sm:gap-2">
-                    <p className="flex items-baseline gap-1.5">
-                      <span className="font-display text-2xl tabular-nums sm:text-3xl">{p.citations}</span>
-                      <span className="text-xs text-muted-foreground">{p.citations === 1 ? t.citationOne : t.citationMany}</span>
-                    </p>
-                    <Badge variant="primary">{t.categories[p.category]}</Badge>
-                    {p.kind === "study" && <Badge>{page.kinds.study}</Badge>}
+                    {!isArticle && (
+                      <p className="flex items-baseline gap-1.5">
+                        <span className="font-display text-2xl tabular-nums sm:text-3xl">{p.citations}</span>
+                        <span className="text-xs text-muted-foreground">{p.citations === 1 ? t.citationOne : t.citationMany}</span>
+                      </p>
+                    )}
+                    {badges}
                   </div>
                 </article>
               </motion.li>
@@ -280,22 +345,8 @@ export function Publications({ t, page, ui, locale, publications, scholarUrl, li
         </AnimatePresence>
 
         {items.length === 0 && (
-          <li className={cn("flex flex-col", cards && "glass col-span-full rounded-3xl")}>
-            <div className="flex flex-col items-center gap-3 px-6 py-16 text-center">
-            <SearchX className="size-8 text-muted-foreground" aria-hidden />
-            <p className="font-medium">{t.emptyTitle}</p>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setQuery("");
-                setFilter("all");
-                setKind("all");
-              }}
-            >
-              {t.clearFilters}
-            </Button>
-            </div>
+          <li className={cn(cards && "glass col-span-full rounded-3xl")}>
+            <EmptyResults title={discover.emptyPublications} hint={discover.emptyHint} resetLabel={discover.reset} onReset={reset} />
           </li>
         )}
       </ul>

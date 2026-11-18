@@ -7,14 +7,17 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ArrowRight, BookOpenText, FileText } from "lucide-react";
 import { BookCard } from "@/components/sections/books";
 import { Button } from "@/components/ui/button";
-import { FilterChips } from "@/components/ui/filters";
+import { EmptyResults, ResultsBar, SelectFilter } from "@/components/ui/explorer";
+import { FilterChips, SearchBox } from "@/components/ui/filters";
 import type { Dictionary } from "@/content/types";
 import { isUpload } from "@/data/site";
 import { href, type Locale } from "@/i18n/config";
+import { bookTopic, hit, searchIndex } from "@/lib/discover";
 import { arrowNudge, cn, easeOutExpo, flipRtl } from "@/lib/utils";
-import type { Book } from "@/types";
+import type { Book, PublicationCategory } from "@/types";
 
-type Filter = "all" | "ar" | "en" | "readable";
+type Shelf = "all" | "readable" | "ar" | "en";
+type Sort = "newest" | "oldest" | "alpha";
 
 interface BookLibraryProps {
   books: Book[];
@@ -22,30 +25,95 @@ interface BookLibraryProps {
   t: Dictionary["books"];
   page: Dictionary["booksPage"];
   shelf: Dictionary["shelf"];
-  /** Show the filter chips (the /books page). */
+  discover: Dictionary["discover"];
+  topics: Dictionary["publications"]["categories"];
+  /** Show the search and filter toolbar (the /books page). */
   filters?: boolean;
 }
 
-/** Featured "read online" books, then the full shelf. */
-export function BookLibrary({ books, locale, t, page, shelf, filters }: BookLibraryProps) {
+/** Featured "read online" books, then the searchable, filterable shelf. */
+export function BookLibrary({ books, locale, t, page, shelf, discover, topics, filters }: BookLibraryProps) {
   const isAr = locale === "ar";
-  const [filter, setFilter] = React.useState<Filter>("all");
-  const featured = books.filter((b) => b.ebook || b.pdf);
-  const shown = books.filter((b) =>
-    filter === "all" ? true : filter === "readable" ? Boolean(b.ebook || b.pdf) : b.language === filter,
-  );
+  const [view, setView] = React.useState<Shelf>("all");
+  const [topic, setTopic] = React.useState<"all" | PublicationCategory>("all");
+  const [year, setYear] = React.useState("all");
+  const [sort, setSort] = React.useState<Sort>("newest");
+  const [query, setQuery] = React.useState("");
+  const deferredQuery = React.useDeferredValue(query);
 
-  const options = (["all", "ar", "en", "readable"] as Filter[])
+  // Search text and topic are computed once per book, not on every keystroke.
+  const indexed = React.useMemo(
+    () =>
+      books.map((b) => ({
+        book: b,
+        topic: bookTopic(b),
+        index: searchIndex(b.title, b.titleAr, b.summaryEn, b.summaryAr, b.authorsEn, b.authorsAr, b.publisher, b.publisherAr, b.isbn, b.year),
+      })),
+    [books],
+  );
+  const featured = books.filter((b) => b.ebook || b.pdf);
+  const titleOf = React.useCallback((b: Book) => (isAr && b.titleAr ? b.titleAr : b.title), [isAr]);
+
+  const shown = React.useMemo(() => {
+    const list = indexed
+      .filter(({ book: b }) => (view === "all" ? true : view === "readable" ? Boolean(b.ebook || b.pdf) : b.language === view))
+      .filter((x) => topic === "all" || x.topic === topic)
+      .filter(({ book: b }) => year === "all" || String(b.year) === year)
+      .filter((x) => hit(x.index, deferredQuery))
+      .map((x) => x.book);
+    const byYear = (a: Book, b: Book, dir: 1 | -1) => {
+      if (a.year === b.year) return titleOf(a).localeCompare(titleOf(b), locale);
+      if (a.year === null) return 1;
+      if (b.year === null) return -1;
+      return (a.year - b.year) * dir;
+    };
+    return list.sort((a, b) =>
+      sort === "alpha" ? titleOf(a).localeCompare(titleOf(b), locale) : byYear(a, b, sort === "newest" ? -1 : 1),
+    );
+  }, [indexed, view, topic, year, deferredQuery, sort, titleOf, locale]);
+
+  const active = view !== "all" || topic !== "all" || year !== "all" || query.trim() !== "";
+  const reset = () => {
+    setView("all");
+    setTopic("all");
+    setYear("all");
+    setQuery("");
+  };
+
+  const shelfOptions = (["all", "readable", "ar", "en"] as Shelf[])
     .map((id) => ({
       id,
-      label: shelf.filters[id],
+      label: id === "readable" ? shelf.featured : shelf.filters[id],
       count: id === "all" ? books.length : id === "readable" ? featured.length : books.filter((b) => b.language === id).length,
     }))
     .filter((o) => o.count > 0);
+  const topicOptions = [
+    { id: "all" as const, label: discover.allTopics },
+    ...(["retrieval", "libraries", "other"] as PublicationCategory[])
+      .map((id) => ({ id, label: topics[id], count: indexed.filter((x) => x.topic === id).length }))
+      .filter((o) => o.count > 0),
+  ];
+  const years = [...new Set(books.map((b) => b.year).filter((y): y is number => y !== null))].sort((a, b) => b - a);
+  const yearOptions = [{ id: "all", label: discover.allYears }, ...years.map((y) => ({ id: String(y), label: String(y) }))];
+  const sortOptions = (["newest", "oldest", "alpha"] as Sort[]).map((id) => ({ id, label: discover.sorts[id] }));
 
   return (
     <div className="grid min-w-0 gap-14 [&>*]:min-w-0">
-      {featured.length > 0 && (
+      {filters && (
+        <div role="search" aria-label={discover.filtersLabel} className="glass grid gap-4 rounded-3xl p-4 sm:p-5">
+          <SearchBox value={query} onChange={setQuery} label={discover.bookSearchLabel} placeholder={discover.bookSearchPlaceholder} />
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            <SelectFilter label={discover.topic} value={topic} onChange={setTopic} options={topicOptions} />
+            <SelectFilter label={discover.year} value={year} onChange={setYear} options={yearOptions} />
+            <SelectFilter label={discover.sort} value={sort} onChange={setSort} options={sortOptions} className="col-span-2 sm:col-span-1" />
+          </div>
+          {shelfOptions.length > 2 && (
+            <FilterChips options={shelfOptions} value={view} onChange={setView} label={shelf.filterLabel} layoutId="book-filter" />
+          )}
+        </div>
+      )}
+
+      {featured.length > 0 && !active && (
         <div>
           <p className="mb-5 flex flex-wrap items-center gap-3 font-mono text-[11px] uppercase tracking-[0.25em] text-muted-foreground">
             <span aria-hidden className="bg-brand h-px w-8" />
@@ -109,13 +177,21 @@ export function BookLibrary({ books, locale, t, page, shelf, filters }: BookLibr
       )}
 
       <div>
-        {filters && options.length > 2 && (
-          <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
-            <FilterChips options={options} value={filter} onChange={setFilter} label={shelf.filterLabel} layoutId="book-filter" />
-            <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground" aria-live="polite">
-              <span className="tabular-nums">{shown.length}</span> / <span className="tabular-nums">{books.length}</span>
-            </p>
+        {filters && (
+          <div className="mb-8">
+            <ResultsBar
+              template={discover.showing}
+              shown={shown.length}
+              total={books.length}
+              noun={discover.nouns.books}
+              active={active}
+              onReset={reset}
+              resetLabel={discover.reset}
+            />
           </div>
+        )}
+        {shown.length === 0 && (
+          <EmptyResults title={discover.emptyBooks} hint={discover.emptyHint} resetLabel={discover.reset} onReset={reset} className="glass rounded-3xl" />
         )}
         {/* The shelf: each book stands on a plank; rows of planks read as a bookcase. */}
         <ul className="grid grid-cols-2 gap-x-5 gap-y-12 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">

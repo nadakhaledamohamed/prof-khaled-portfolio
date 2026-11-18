@@ -22,7 +22,7 @@ export default async function BooksPage({ params }: { params: LocaleParams }) {
         </div>
       </PageHero>
       <div className="container-page pb-24">
-        <BookLibrary filters t={t.books} page={t.booksPage} shelf={t.shelf} locale={locale} books={data.books} />
+        <BookLibrary filters t={t.books} page={t.booksPage} shelf={t.shelf} discover={t.discover} topics={t.publications.categories} locale={locale} books={data.books} />
       </div>
     </>
   );

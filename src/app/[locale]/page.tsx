@@ -63,6 +63,7 @@ export default async function HomePage({ params }: { params: LocaleParams }) {
         publications={data.publications}
         scholarUrl={data.links.scholar}
         views={t.views}
+        discover={t.discover}
         limit={8}
       />
       <LatestArticles t={t} locale={locale} articles={data.articles} />
