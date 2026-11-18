@@ -66,7 +66,7 @@ const loggedFailures = new Set<string>();
 
 const cachedContent = unstable_cache(
   async (): Promise<SiteContent> => (await readSiteContent()).content,
-  ["site-content-v1"],
+  ["site-content-v2"],
   { tags: [CONTENT_TAG], revalidate: 300 },
 );
 
@@ -77,7 +77,9 @@ const cachedContent = unstable_cache(
  */
 export async function getSiteContent(): Promise<SiteContent> {
   try {
-    return await cachedContent();
+    // The data cache outlives deployments, so a cached value may predate keys added in this
+    // release. Re-applying the current defaults keeps every new field defined.
+    return mergeDefaults(defaultContent, await cachedContent());
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     // Log each distinct failure once per process, not once per page.
